@@ -7,9 +7,9 @@ from numpy.core.fromnumeric import size
 import torch
 HOME = os.environ['HOME']
 sys.path.append(HOME + '/catkin_ws/src/fl4sr/src')
-from IndividualDDPG_limit import IndividualDDPG
+from IndividualDDPG import IndividualDDPG
 from worlds import World
-from DDPG_limit import DDPG
+from DDPG import DDPG
 from buffers import BasicBuffer, Transition
 import numpy as np
 

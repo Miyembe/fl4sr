@@ -11,10 +11,10 @@ import roslaunch
 import numpy as np
 HOME = os.environ['HOME']
 sys.path.append(HOME + '/catkin_ws/src/fl4sr/src')
-from IndividualDDPG import IndividualDDPG
+from IndividualDDPG_limit import IndividualDDPG
 # TODO This is the different with experiment.py
-from SharedNetworkDDPG import SharedNetworkDDPG
-from SharedExperienceDDPG import SharedExperienceDDPG
+from SharedNetworkDDPG_limit import SharedNetworkDDPG
+from SharedExperienceDDPG_limit import SharedExperienceDDPG
 from FederatedLearningDDPG import FederatedLearningDDPG
 from SwarmLearningDDPG import SwarmLearningDDPG
 from worlds import BASELINE_WORLD

@@ -23,7 +23,7 @@ from tf.transformations import euler_from_quaternion
 import queue
 from collections import deque
 
-class Enviroment():
+class Environment():
     """Similar class as openAI gym Env. 
     
     Is able to: reset, step.
