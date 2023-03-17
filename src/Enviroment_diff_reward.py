@@ -92,7 +92,7 @@ class Enviroment():
         self.REWARD_TIME = -0.3
         self.PROGRESS_REWARD_FACTOR = self.ARR_REWARD_PROGRESS
         self.FACTOR_LINEAR = factor_linear
-        self.FACTOR_ANGULAR = 1.0#factor_angular
+        self.FACTOR_ANGULAR = 1.0 #factor_angular
         self.FACTOR_NORMALISE_DISTANCE = 5.0
         self.FACTOR_NORMALISE_ANGLE = np.pi
         self.REWARD_MAX_COLLISION_DENSE = reward_max_collision
@@ -322,7 +322,6 @@ class Enviroment():
         actions_linear_x = actions.T[1]
         actions_angular_z = actions.T[0]
         # publish twists
-        self.pause()
         for i in range(self.robot_count):
             self.publisher_turtlebots[i].publish(twists[i])
             #self.publisher_turtlebots[i].publish(Twist())
@@ -344,11 +343,6 @@ class Enviroment():
         while elapsed_sim_time < time_step - self.rate_period:
             self.rate.sleep() 
             elapsed_sim_time = rospy.get_time() - start_time
-
-        print(f"elapsed_real_time: {time.time() - start_time_real }")
-        self.pause()
-        print(f"paused_sim_time: {rospy.get_time() - start_time }")
-
 
         # self.unpause()
         # while_loop_counter = 0

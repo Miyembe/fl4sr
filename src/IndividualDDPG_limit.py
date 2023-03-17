@@ -2,12 +2,13 @@
 import sys
 import os
 HOME = os.environ['HOME']
-sys.path.append(HOME + '/catkin_ws/src/fl4sr/src')
+#sys.path.append(HOME + '/catkin_ws/src/fl4sr/src')
 import numpy as np
 import time
 import pickle
 import json
 import matplotlib.pyplot as plt
+import rospkg
 from Enviroment_diff_reward import Enviroment
 from Enviroment_eval import Enviroment_eval
 from environment_real import RealEnviroment
@@ -45,6 +46,9 @@ class IndividualDDPG():
             name (str, optional): Name of used method. Defaults to None.
         """
         print(f"INSIDE IndividualDDPG: episode_count: {episode_count}, episode_step_count: {episode_step_count}. world: {world}, env: {env}, reward_goal: {reward_goal}, reward_collision: {reward_collision}, reward_progress: {reward_progress}, reward_max_collision: {reward_max_collision}, list_reward: {list_reward}, factor_linear: {factor_linear}, factor_angular: {factor_angular}, discount_factor: {discount_factor}, is_progress: {is_progress}, method: {name}")
+        self.rospack = rospkg.RosPack()
+        self.pkg_path = self.rospack.get_path('fl4sr')
+        
         # global like variables
         self.TIME_TRAIN = 5
         self.TIME_TARGET = 5
@@ -157,7 +161,8 @@ class IndividualDDPG():
     def init_paths(self):
         """Initializes and creates file system for saving obtained information.
         """
-        path_data = HOME + '/catkin_ws/src/fl4sr/src/data'
+        path_data = self.pkg_path + '/src/data'#HOME + '/catkin_ws/src/fl4sr/src/data'
+
         if not self.model_name is "":
             name_run = self.NAME
         else:
