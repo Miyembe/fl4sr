@@ -3,6 +3,7 @@ import os
 import csv
 import matplotlib.pyplot as plt
 import argparse
+import rospkg
 
 def get_path_log(path_data: str, 
     exp_name: str
@@ -352,8 +353,9 @@ if __name__=="__main__":
         help='a name of parent directory containing all the experiment subdirs')
     args = parser.parse_args()
 
-    HOME = os.environ['HOME']
-    path_data = HOME + '/catkin_ws/src/fl4sr/src/data'
+    rospack = rospkg.RosPack()
+    pkg_path = rospack.get_path('fl4sr')
+    path_data = pkg_path + '/src/data'
     dir_name = args.name_parent_dir
     path_parent = os.path.join(path_data, dir_name)
     dict_key_value = {'algorithm': ['IDDPG', 'SNDDPG', 'FLDDPG', 'local_update', 'round_update', 'pair_update'], 

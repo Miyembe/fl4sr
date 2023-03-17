@@ -41,7 +41,7 @@ METHODS = {'IDDPG': IndividualDDPG,
            'MADDPG': MomentumAveragingDDPG,
            'AllDDPG': AllDDPG}
 
-EPISODE_COUNT = 80
+EPISODE_COUNT = 125
 EPISODE_STEP_COUNT = 1024
 
 LEARN_WORLD = REAL_WORLD_4_diff_reward
