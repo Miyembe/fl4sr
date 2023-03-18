@@ -19,7 +19,10 @@ class DDPG:
         replay_buffer,
         state_dimension: int,
         action_dimension: int,
-        discount_factor: float
+        discount_factor: float,
+        num_parameters: int = 128,
+        learning_rate: float = 0.001,
+        batch_size: int = 512
         ) -> None:
         """Creates actor, critic and target actor and critic, sets their weights 
             to same values.
@@ -35,12 +38,12 @@ class DDPG:
         self.replay_buffer = replay_buffer
         # other parameters
         # actor, critic parameters
-        self.ACTOR_HIDDEN_LAYERS =  [128,128]
-        self.CRITIC_HIDDEN_LAYERS = [128,128]
+        self.ACTOR_HIDDEN_LAYERS =  [num_parameters,num_parameters]
+        self.CRITIC_HIDDEN_LAYERS = [num_parameters,num_parameters]
         # training parameters
-        self.LEARNING_RATE_ACTOR = 0.001
-        self.LEARNING_RATE_CRITIC = 0.001
-        self.BATCH_SIZE = 512
+        self.LEARNING_RATE_ACTOR = learning_rate
+        self.LEARNING_RATE_CRITIC = learning_rate
+        self.BATCH_SIZE = batch_size
         self.GAMMA = discount_factor
         # update parameters
         self.RHO = 1.0

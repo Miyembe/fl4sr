@@ -7,9 +7,9 @@ from numpy.core.fromnumeric import size
 import torch
 HOME = os.environ['HOME']
 sys.path.append(HOME + '/catkin_ws/src/fl4sr/src')
-from IndividualDDPG_limit import IndividualDDPG
+from IndividualDDPG import IndividualDDPG
 from worlds import World
-from DDPG_limit import DDPG
+from DDPG import DDPG
 from buffers import BasicBuffer, Transition
 import numpy as np
 import random
@@ -38,6 +38,10 @@ class SwarmLearningDDPG(IndividualDDPG):
         factor_linear: float = 0.25,
         factor_angular: float = 1.0,
         discount_factor: float = 0.99,
+        num_parameters: int = 128,
+        learning_rate: float = 0.001,
+        batch_size: int = 512,
+        buffer_type: str = 'BasicBuffer',
         is_progress: bool = False,
         name=None,
         update_method: str = "local_update"

@@ -34,6 +34,10 @@ class SharedNetworkDDPG(IndividualDDPG):
         factor_linear: float = 0.25,
         factor_angular: float = 1.0,
         discount_factor: float = 0.99,
+        num_parameters: int = 128,
+        learning_rate: float = 0.001,
+        batch_size: int = 512,
+        buffer_type: str = 'BasicBuffer',
         is_progress: bool = False,
         name=None, 
         
@@ -46,6 +50,10 @@ class SharedNetworkDDPG(IndividualDDPG):
             world (World): contains information about experiment characteristics
         """
         self.NAME = 'SNDDPG'
+        if buffer_type = "BasicBuffer":
+            self.BUFFER_TYPE = BasicBuffer
+        elif buffer_type = "PER"
+            self.BUFFER_TYPE = PrioritizedExperienceReplayBuffer
         self.BUFFER_TMP_SIZE = 70000
         self.BUFFER_SIZE = 10000
         super().__init__(episode_count, episode_step_count, world, env, reward_goal, reward_collision, reward_progress, reward_max_collision, list_reward, factor_linear, factor_angular, discount_factor, is_progress, name)
@@ -58,8 +66,8 @@ class SharedNetworkDDPG(IndividualDDPG):
         Returns:
             list: Buffers list.
         """
-        return [BasicBuffer(self.BUFFER_SIZE) 
-                for i in range(self.robot_count)] + [BasicBuffer(self.BUFFER_TMP_SIZE)]
+        return [self.BUFFER_TYPE(self.BUFFER_SIZE) 
+                for i in range(self.robot_count)] + [self.BUFFER_TYPE(self.BUFFER_TMP_SIZE)]
 
     def init_agents(self
         ) -> list:

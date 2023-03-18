@@ -35,13 +35,9 @@ METHODS = {'IDDPG': IndividualDDPG,
            'SEDDPG': SharedExperienceDDPG,
            'SNDDPG': SharedNetworkDDPG,
            'FLDDPG': FederatedLearningDDPG,
-           'SwarmDDPG': SwarmLearningDDPG,
-           'PWDDPG': PositiveWeightingDDPG,
-           'RWDDPG': RealWeightingDDPG,
-           'MADDPG': MomentumAveragingDDPG,
-           'AllDDPG': AllDDPG}
+           'SwarmDDPG': SwarmLearningDDPG,}
 
-EPISODE_COUNT = 125
+EPISODE_COUNT = 300
 EPISODE_STEP_COUNT = 1024
 
 LEARN_WORLD = REAL_WORLD_4_diff_reward
@@ -62,6 +58,10 @@ def experiment_learn(
         factor_linear: float,
         factor_angular: float,
         discount_factor: float,
+        num_parameters: int = 128,
+        learning_rate: float = 0.001,
+        batch_size: int = 512,
+        buffer_type: str = 'BasicBuffer',
         is_progress: bool,
         args
     ) -> bool:
@@ -71,31 +71,15 @@ def experiment_learn(
         bool: If program finished correctly.
     """
     print(f"INSIDE experiment_learn | method: {method}, restart: {restart}, seed: {seed}, update_step: {update_step}, update_period: {update_period}, reward_goal: {reward_goal}, reward_collision: {reward_collision}, reward_progress: {reward_progress}, list_reward: {list_reward}, factor_linear: {factor_linear}, factor_angular: {factor_angular}, discount_factor: {discount_factor}, is_progress: {is_progress}")
-    # ROS
-    # launch roscore
-    # os.environ['ROS_MASTER_URI'] = f"http://192.168.210.127:11351/"
-    # #os.environ['GAZEBO_MASTER_URI'] = f"http://192.168.210.127:11371/"
-    # uuid = roslaunch.rlutil.get_or_generate_uuid(options_runid=None, options_wait_for_master=False)
-    # roslaunch.configure_logging(uuid)
-    # roscore_launch = roslaunch.parent.ROSLaunchParent(uuid, roslaunch_files=[], is_core=True)
-    # roscore_launch.start()
-    # launch simulation
-    print('Simulation: Ready to start!')
-    # uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-    # roslaunch.configure_logging(uuid)
-    # world_launch = roslaunch.parent.ROSLaunchParent(uuid, [HOME + '/catkin_ws/src/fl4sr/launch/fl4sr_real_8_diff_reward.launch'])
-    # world_launch.start()
-    # time.sleep(5)
-    # SETTINGS
     # set seeds
     if seed is not None:
         random.seed(seed)
         np.random.seed(seed)
 
-    LEARN_ENV = 'Enviroment'
+    LEARN_ENV = 'Environment'
     # RUN
     print('Simulation: Ready to run!')
-    if restart:
+    if restart: # This is not used feature for now.
         with open('experiment.pickle', 'rb') as f:
             DDPG = pickle.load(f)
         DDPG.init_enviroment()
@@ -104,8 +88,13 @@ def experiment_learn(
         
         print(f"INSIDE Enviroment | INITIALISE DDPG")
         if method=="SwarmDDPG":
-            DDPG = METHODS[method](EPISODE_COUNT, EPISODE_STEP_COUNT, LEARN_WORLD, LEARN_ENV, reward_goal, reward_collision, reward_progress, reward_max_collision, list_reward, factor_linear, factor_angular, discount_factor, method, update_method=args.update_method)
-        else: DDPG = METHODS[method](EPISODE_COUNT, EPISODE_STEP_COUNT, LEARN_WORLD, LEARN_ENV, reward_goal, reward_collision, reward_progress, reward_max_collision, list_reward, factor_linear, factor_angular, discount_factor, method)
+            DDPG = METHODS[method](EPISODE_COUNT, EPISODE_STEP_COUNT, LEARN_WORLD, LEARN_ENV, reward_goal, reward_collision, 
+                                   reward_progress, reward_max_collision, list_reward, factor_linear, factor_angular, 
+                                   discount_factor, num_paramters, learning_rate, batch_size, buffer_type, 
+                                   method, update_method=args.update_method)
+        else: DDPG = METHODS[method](EPISODE_COUNT, EPISODE_STEP_COUNT, LEARN_WORLD, LEARN_ENV, reward_goal, reward_collision, 
+                                     reward_progress, reward_max_collision, list_reward, factor_linear, factor_angular, 
+                                     discount_factor, num_paramters, learning_rate, batch_size, buffer_type, method)
         if update_step is None and update_period is not None:
             DDPG.EPISODE_UPDATE = True
             DDPG.TIME_UPDATE = update_period
@@ -115,7 +104,7 @@ def experiment_learn(
     success, _, _ = DDPG.run()
     DDPG.args_save(args)
     #roscore_launch.shutdown()
-    # RESULTS
+    # RESULTS - This is not used feature for now.
     if not success:
         DDPG.terminate_enviroment()
         # save DDPG class
@@ -378,6 +367,29 @@ if __name__ == '__main__':
         '--update_method', 
         type=str,
         help='Updated Method for SwarmDDPG algorithm (1) local_update, (2) SimFL_update, (3) pair_update.')
+
+    # DRL algorithm parametrs
+    parser.add_argument(
+        '--num_parameters', 
+        type=int,
+        default=128,
+        help='Number of parameters of every layer of Actor and Critic of DDPG')
+    parser.add_argument(
+        '--learning_rate', 
+        type=float,
+        default=0.001
+        help='Learning rate of the Adam optimiser in DDPG')
+    parser.add_argument(
+        '--batch_size', 
+        type=int,
+        default=512,
+        help='batch_size of DDPG algorithm for each run of optimisation step.')
+    parser.add_argument(
+        '--buffer_type', 
+        type=str,
+        default='BasicBuffer'
+        help='Type of replay buffer')
+
     args = parser.parse_args()
     
     # ARGUMENTS
@@ -387,7 +399,9 @@ if __name__ == '__main__':
     if args.mode == 'learn':
         print(f"It is in learning mode.")
         experiment_learn(args.method, args.restart, args.seed, args.updateStep, args.updatePeriod, args.reward_goal, args.reward_collision,\
-                         args.reward_progress, args.reward_max_collision, args.list_reward, args.factor_linear, args.factor_angular, args.discount_factor, args.is_progress, args)
+                         args.reward_progress, args.reward_max_collision, args.list_reward, args.factor_linear, args.factor_angular, args.discount_factor, 
+                         args.num_parameters, args.learning_rate, args.batch_size, args.buffer_type,
+                         args.is_progress, args)
     elif args.mode == 'real':
         print(f"It is in real mode")
         experiment_real(args.restart, args.seed, args.worldNumber, args.pathActor, args.pathCritic)

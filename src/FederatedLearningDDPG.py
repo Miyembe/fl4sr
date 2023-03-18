@@ -37,6 +37,10 @@ class FederatedLearningDDPG(IndividualDDPG):
         factor_linear: float = 0.25,
         factor_angular: float = 1.0,
         discount_factor: float = 0.99,
+        num_parameters: int = 128,
+        learning_rate: float = 0.001,
+        batch_size: int = 512,
+        buffer_type: str = 'BasicBuffer',
         is_progress: bool = False,
         name=None, 
         ) -> None:

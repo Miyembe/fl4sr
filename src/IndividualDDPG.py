@@ -34,6 +34,10 @@ class IndividualDDPG():
         factor_linear: float = 0.25,
         factor_angular: float = 1.0,
         discount_factor: float = 0.99,
+        num_parameters: int = 128,
+        learning_rate: float = 0.001,
+        batch_size: int = 512,
+        buffer_type: str = 'BasicBuffer',
         is_progress: bool = False,
         name=None,
         model_name: str = ""
@@ -77,12 +81,18 @@ class IndividualDDPG():
         self.is_progress=is_progress
         self.model_name = model_name
         self.discount_factor = discount_factor
+        self.num_parameters = num_parameters
+        self.learning_rate = learning_rate
+        self.batch_size = batch_size
         # init Environment and dimensions
         self.world = world
         self.env = env
         self.init_environment()
         # init buffers and agents
-        self.BUFFER_TYPE = BasicBuffer
+        if buffer_type = "BasicBuffer":
+            self.BUFFER_TYPE = BasicBuffer
+        elif buffer_type = "PER"
+            self.BUFFER_TYPE = PrioritizedExperienceReplayBuffer
         if not hasattr(self, 'BUFFER_SIZE'):
             self.BUFFER_SIZE = 30000
         self.buffers = self.init_buffers()
@@ -155,7 +165,10 @@ class IndividualDDPG():
         return [DDPG(self.buffers[i], 
                      self.observation_dimension, 
                      self.action_dimension,
-                     self.discount_factor) 
+                     self.discount_factor,
+                     self.num_parameters,
+                     self.learning_rate,
+                     self.batch_size) 
                 for i in range(self.robot_count)]
 
     def init_paths(self):
@@ -242,17 +255,10 @@ class IndividualDDPG():
             if self.episode_error != episode:
                 self.episode_step_error = 0
             for step in range(self.episode_step_error, self.episode_step_count):
-                # get actions
-                #print("got action")
                 actions = self.agents_actions(current_states)
                 actions = self.actions_add_random(actions, episode)
                 # perform step
                 new_states, rewards, robots_finished, robots_succeeded_once, error, _ = self.environment.step(actions)
-                if error:
-                    self.episode_error = episode
-                    self.episode_step_error = step
-                    print('ERROR: DDPG: Death robot detected during {}.{}'.format(episode, step))
-                    return False, episode, step
                 total_rewards += rewards
                 data_total_rewards += rewards
                 self.buffers_save_transitions(current_states, actions, rewards, new_states, robots_finished)
