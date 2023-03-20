@@ -89,9 +89,9 @@ class IndividualDDPG():
         self.env = env
         self.init_environment()
         # init buffers and agents
-        if buffer_type = "BasicBuffer":
+        if buffer_type == "BasicBuffer":
             self.BUFFER_TYPE = BasicBuffer
-        elif buffer_type = "PER"
+        elif buffer_type == "PER":
             self.BUFFER_TYPE = PrioritizedExperienceReplayBuffer
         if not hasattr(self, 'BUFFER_SIZE'):
             self.BUFFER_SIZE = 30000

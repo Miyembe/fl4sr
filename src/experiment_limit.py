@@ -37,7 +37,7 @@ METHODS = {'IDDPG': IndividualDDPG,
            'FLDDPG': FederatedLearningDDPG,
            'SwarmDDPG': SwarmLearningDDPG,}
 
-EPISODE_COUNT = 300
+EPISODE_COUNT = 125
 EPISODE_STEP_COUNT = 1024
 
 LEARN_WORLD = REAL_WORLD_4_diff_reward
@@ -58,10 +58,10 @@ def experiment_learn(
         factor_linear: float,
         factor_angular: float,
         discount_factor: float,
-        num_parameters: int = 128,
-        learning_rate: float = 0.001,
-        batch_size: int = 512,
-        buffer_type: str = 'BasicBuffer',
+        num_parameters: int,
+        learning_rate: float,
+        batch_size: int,
+        buffer_type: str,
         is_progress: bool,
         args
     ) -> bool:
@@ -90,11 +90,11 @@ def experiment_learn(
         if method=="SwarmDDPG":
             DDPG = METHODS[method](EPISODE_COUNT, EPISODE_STEP_COUNT, LEARN_WORLD, LEARN_ENV, reward_goal, reward_collision, 
                                    reward_progress, reward_max_collision, list_reward, factor_linear, factor_angular, 
-                                   discount_factor, num_paramters, learning_rate, batch_size, buffer_type, 
+                                   discount_factor, num_parameters, learning_rate, batch_size, buffer_type, 
                                    method, update_method=args.update_method)
         else: DDPG = METHODS[method](EPISODE_COUNT, EPISODE_STEP_COUNT, LEARN_WORLD, LEARN_ENV, reward_goal, reward_collision, 
                                      reward_progress, reward_max_collision, list_reward, factor_linear, factor_angular, 
-                                     discount_factor, num_paramters, learning_rate, batch_size, buffer_type, method)
+                                     discount_factor, num_parameters, learning_rate, batch_size, buffer_type, method)
         if update_step is None and update_period is not None:
             DDPG.EPISODE_UPDATE = True
             DDPG.TIME_UPDATE = update_period
@@ -377,7 +377,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--learning_rate', 
         type=float,
-        default=0.001
+        default=0.001,
         help='Learning rate of the Adam optimiser in DDPG')
     parser.add_argument(
         '--batch_size', 
@@ -387,7 +387,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--buffer_type', 
         type=str,
-        default='BasicBuffer'
+        default='BasicBuffer',
         help='Type of replay buffer')
 
     args = parser.parse_args()

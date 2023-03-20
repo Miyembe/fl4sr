@@ -196,7 +196,7 @@ class PrioritizedExperienceReplayBuffer():
         # sample
         sample_indexes = np.random.choice(fresh_length + sorted_length, 
                                           size=batch_size, 
-                                          replace=False, 
+                                          replace=True, 
                                           p=probability_array)
         self._sample_fresh_indexes = sample_indexes[sample_indexes < fresh_length]
         self._sample_sorted_indexes = sample_indexes[sample_indexes >= fresh_length] - fresh_length

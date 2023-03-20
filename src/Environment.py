@@ -157,7 +157,7 @@ class Environment():
         self.rate = rospy.Rate(self.rate_freq)
         self.laser_count = 24
         
-        self.observation_dimension = self.laser_count + 2
+        self.observation_dimension = self.laser_count + 1
         self.action_dimension = 2
 
         # publishers for turtlebots
@@ -340,9 +340,14 @@ class Environment():
         elapsed_sim_time = 0
         self.step_control(True, True, num_simulation_step)
         
-        while elapsed_sim_time < time_step - self.rate_period:
+        break_time = time.time()
+        while elapsed_sim_time < time_step - 2*self.rate_period:
             self.rate.sleep() 
             elapsed_sim_time = rospy.get_time() - start_time
+            print(f"elapsed_sim_time: {elapsed_sim_time}")
+            if time.time() - break_time > time_step:
+                print(f"break_time: {time.time() - break_time}")
+                break
 
         # self.unpause()
         # while_loop_counter = 0
@@ -412,7 +417,7 @@ class Environment():
         assert s_robot_target_angle_difference.shape == (self.robot_count, 1), 'Wrong angle to target!'
         states = np.hstack((robot_lasers, 
                             #s_actions_linear, s_actions_angular, 
-                            s_robot_target_distances, 
+                            #s_robot_target_distances, 
                             s_robot_target_angle_difference))
         assert states.shape == (self.robot_count, self.observation_dimension), 'Wrong states dimension!'
         
@@ -751,7 +756,7 @@ class Environment():
         assert s_robot_target_angle_difference.shape == (self.robot_count, 1), 'Wrong angle to target!'
         states = np.hstack((robot_lasers, 
                             #s_actions_linear, s_actions_angular, 
-                            s_robot_target_distances, 
+                            #s_robot_target_distances, 
                             s_robot_target_angle_difference))
         assert states.shape == (self.robot_count, self.observation_dimension), 'Wrong states dimension!'
         return states

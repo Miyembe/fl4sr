@@ -26,7 +26,7 @@ for rg, rc, rp in zip(dict_reward['reward_goal'], dict_reward['reward_collision'
         for seed in dict_seed['seed']:
             for algo in dict_algorithms['algorithms']:
                 COMMAND_LIST.append(['rosrun', 'fl4sr', 'experiment_limit.py', 'SwarmDDPG', f'--mode={"learn"}', f'--seed={seed}', f'--updatePeriod={uP}', f'--reward_goal={rg}',\
-                 f'--reward_collision={rc}',f'--reward_progress={rp}', f'--reward_max_collision={1.0}', f'--list_reward={dict_list["list_reward"]}', '--factor_linear=0.25', f'--discount_factor={0.99}', f'--update_method={algo}'])
+                 f'--reward_collision={rc}',f'--reward_progress={rp}', f'--reward_max_collision={1.0}', f'--list_reward={1}', '--factor_linear=0.25', f'--discount_factor={0.99}', f'--update_method={algo}'])
 
 # PRINT
 # Print all commands to before their execution.

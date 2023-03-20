@@ -50,9 +50,9 @@ class SharedNetworkDDPG(IndividualDDPG):
             world (World): contains information about experiment characteristics
         """
         self.NAME = 'SNDDPG'
-        if buffer_type = "BasicBuffer":
+        if buffer_type == "BasicBuffer":
             self.BUFFER_TYPE = BasicBuffer
-        elif buffer_type = "PER"
+        elif buffer_type == "PER":
             self.BUFFER_TYPE = PrioritizedExperienceReplayBuffer
         self.BUFFER_TMP_SIZE = 70000
         self.BUFFER_SIZE = 10000

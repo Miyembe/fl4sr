@@ -17,18 +17,19 @@ sys.path.append(HOME + '/catkin_ws/src/fl4sr/src')
 
 dict_reward = {'reward_goal': [100.0], 'reward_collision': [-30.0], 'reward_progress': [40.0]}
 dict_update_period = {'updatePeriod': [1,3,5]}
+dict_batch_size = {'batch_size': [256, 512, 1024, 2048]}
 dict_seed = {'seed': [601, 602, 603]}
-dict_algorithms = {'algorithms': ['local_update']}
+dict_algorithms = {'algorithms': ['IDDPG']}
 
 COMMAND_LIST = []
 for rg, rc, rp in zip(dict_reward['reward_goal'], dict_reward['reward_collision'], dict_reward['reward_progress']):
-    for uP in dict_update_period['updatePeriod']:
+    for bs in dict_batch_size['batch_size']:
         for seed in dict_seed['seed']:
             for algo in dict_algorithms['algorithms']:
-                COMMAND_LIST.append(['rosrun', 'fl4sr', 'experiment_limit.py', 'SwarmDDPG', f'--mode={"learn"}', f'--seed={seed}', f'--updatePeriod={uP}', f'--reward_goal={rg}',\
-                 f'--reward_collision={rc}',f'--reward_progress={rp}', f'--reward_max_collision={1.0}', f'--list_reward={dict_list["list_reward"]}', '--factor_linear=0.25', f'--discount_factor={0.99}', f'--update_method={algo}'])
-
-# PRINT
+                COMMAND_LIST.append(['rosrun', 'fl4sr', 'experiment_limit.py', algo, f'--mode={"learn"}', f'--seed={seed}', f'--updatePeriod={1}', f'--reward_goal={rg}',\
+                 f'--reward_collision={rc}',f'--reward_progress={rp}', f'--reward_max_collision={1.0}', f'--list_reward={1}', 
+                 '--factor_linear=0.25', f'--discount_factor={0.99}', f'--batch_size={bs}', f'--buffer_type={"PER"}'])
+# PRINT'
 # Print all commands to before their execution.
 for i in range(len(COMMAND_LIST)):    
     print(COMMAND_LIST[i])
