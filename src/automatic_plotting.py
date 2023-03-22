@@ -20,6 +20,22 @@ def get_path_reward(path_data: str,
     path_reward = os.path.join(path_log, 'rewards.npy')
     return path_reward
 
+def get_path_policy_loss(path_data: str, 
+    exp_name: str
+    ) -> str:
+    path_exp = os.path.join(path_data, exp_name)
+    path_log = os.path.join(path_exp, 'log')
+    path_policy_loss = os.path.join(path_log, 'policy_loss.npy')
+    return path_policy_loss
+
+def get_path_critic_loss(path_data: str, 
+    exp_name: str
+    ) -> str:
+    path_exp = os.path.join(path_data, exp_name)
+    path_log = os.path.join(path_exp, 'log')
+    path_critic_loss = os.path.join(path_log, 'critic_loss.npy')
+    return path_critic_loss
+
 def plot_reward(data_reward: np.array,
     path_save: str,
     exp_name: str,
@@ -32,20 +48,67 @@ def plot_reward(data_reward: np.array,
     list_time_steps = [i for i in range(num_time_steps)]
     num_agents = 4
     list_agents = [f"Robot {i}" for i in range(num_agents)]
-    
-    figure, ax = plt.subplots(1, 1, figsize=(6, 6), dpi=300)
-    #plt.xlabel('Episodes')
-    #plt.ylabel('Rewards')
-    ax.plot(list_time_steps, values.T)
-    ax.set_title(f'Experiment name: {exp_name}')
-    ax.set_xlabel('Episodes')
-    ax.set_ylabel('Rewards')
-    ax.set_ylim(-5, 5)
-    ax.legend(list_agents)
+    for i in range(2):
+        figure, ax = plt.subplots(1, 1, figsize=(6, 6), dpi=300)
+        #plt.xlabel('Episodes')
+        #plt.ylabel('Rewards')
+        ax.plot(list_time_steps, values.T)
+        ax.set_title(f'Experiment name: {exp_name}')
+        ax.set_xlabel('Episodes')
+        ax.set_ylabel('Rewards')
+        if i == 0:
+            ax.set_ylim(-2, 6)
+        else:
+            ax.set_ylim(-0.1, 0.5)
+        ax.legend(list_agents)
+        plot_name = exp_name + f'_{i}.png'
+        path_plot = os.path.join(path_save, plot_name)
+        figure.savefig(path_plot)
+        figure.clear()
+    return
 
-    plot_name = exp_name + '.png'
-    path_plot = os.path.join(path_save, plot_name)
-    figure.savefig(path_plot)
+def plot_loss(loss: np.array,
+    loss_type: str,
+    path_save: str,
+    exp_name: str,
+    ) -> None:
+    arr_rewards_T = loss.T
+    values = arr_rewards_T
+    print(f"shape of values: {values.shape}")
+    
+    num_time_steps = values.shape[1]
+    list_time_steps = [i for i in range(num_time_steps)]
+    num_agents = 4
+    list_agents = [f"Robot {i}" for i in range(num_agents)]
+    for i in range(2):
+        figure, ax = plt.subplots(1, 1, figsize=(6, 6), dpi=300)
+        #plt.xlabel('Episodes')
+        #plt.ylabel('Rewards')
+        ax.plot(list_time_steps, values.T)
+        ax.set_title(f'Experiment name: {exp_name}')
+        ax.set_xlabel('Training Step (Episodes/5)')
+        if loss_type == 'policy_loss':
+            ax.set_ylabel('Policy Loss')
+            if i == 0:
+                ax.set_ylim(-10, 0.1)
+            else:
+                ax.set_ylim(0.1, -1)
+
+        elif loss_type == 'critic_loss':
+            ax.set_ylabel('Critic Loss')
+            if i == 0:
+                ax.set_ylim(-0.2, 1)
+            else:
+                ax.set_ylim(-1, 5)
+        else: raise ValueError(f"No Loss named {loss_type}!")
+        
+        #ax.set_ylim(-5, 5)
+        ax.legend(list_agents)
+
+        plot_name = exp_name + f'_{loss_type}_{i}.png'
+        path_plot = os.path.join(path_save, plot_name)
+        figure.savefig(path_plot)
+        figure.clear()
     return
 
 def plot_reward_algo_up(avg_reward: np.array,
@@ -149,6 +212,30 @@ def save_individual_reward_plot(path_parent):
             plot_reward(data_reward, path_log, exp_name)
             print(f"Plot is successfully saved in {path_log}")
         else: print(f"No data is found at: {path_reward}")
+
+def save_individual_loss_plot(path_parent):
+    list_exp = os.listdir(path_parent)
+
+    # Using a directory to read the file names.
+    for exp_name in list_exp:
+        path_log = get_path_log(path_parent, exp_name)
+        path_policy_loss = get_path_policy_loss(path_parent, exp_name)
+        path_critic_loss = get_path_critic_loss(path_parent, exp_name)
+        is_path_policy_exist = os.path.exists(path_policy_loss)
+        if is_path_policy_exist == True:
+            print(f"Policy Loss is found at: {path_policy_loss}")
+            data_policy_loss = np.load(path_policy_loss)
+            plot_loss(data_policy_loss, 'policy_loss', path_log, exp_name)
+            print(f"Policy Loss Plot is successfully saved in {path_log}")
+        else: print(f"No data is found at: {path_policy_loss}")
+
+        is_path_critic_exist = os.path.exists(path_critic_loss)
+        if is_path_critic_exist == True:
+            print(f"Critic Loss is found at: {path_critic_loss}")
+            data_critic_loss = np.load(path_critic_loss)
+            plot_loss(data_critic_loss, 'critic_loss', path_log, exp_name)
+            print(f"Critic Loss Plot is successfully saved in {path_log}")
+        else: print(f"No data is found at: {path_critic_loss}")
 
 def save_averaged_reward_plot(path_parent, dict_exp):
     
@@ -364,6 +451,7 @@ if __name__=="__main__":
 
     
     save_individual_reward_plot(path_parent)
+    save_individual_loss_plot(path_parent)
     # generate_subdirs(path_parent, dict_key_value)
     # dict_exp = match_exp_setting(path_parent)
     # print(f"dict_exp: {dict_exp}")

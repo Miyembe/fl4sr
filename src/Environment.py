@@ -21,6 +21,7 @@ from gazebo_msgs.srv import StepControl
 from std_srvs.srv import Empty
 from tf.transformations import euler_from_quaternion
 import queue
+import random
 from collections import deque
 
 class Environment():
@@ -53,9 +54,9 @@ class Environment():
         self.GOAL_RANGE = 0.5
         #print(f"list_reward: {list_reward}")
         if list_reward == 1:
-            self.ARR_REWARD_GOAL = np.array([100, 100, 100, 100])
+            self.ARR_REWARD_GOAL = np.array([100, 10, 100, 10])
             self.ARR_REWARD_COLLISION = np.array([-20, -20, -20, -20])
-            self.ARR_REWARD_PROGRESS = np.array([40, 40, 40, 40])
+            self.ARR_REWARD_PROGRESS = np.array([40, 4, 40, 4])
         if list_reward == 2:
             self.ARR_REWARD_GOAL = np.array([100, 100, 100, 100])
             self.ARR_REWARD_COLLISION = np.array([0, -20, -50, -30])
@@ -93,11 +94,13 @@ class Environment():
         self.PROGRESS_REWARD_FACTOR = self.ARR_REWARD_PROGRESS
         self.FACTOR_LINEAR = factor_linear
         self.FACTOR_ANGULAR = 1.0 #factor_angular
-        self.FACTOR_NORMALISE_DISTANCE = 5.0
+        self.radius = 5.0
+        self.radius_reset = self.radius+1.0
+        self.FACTOR_NORMALISE_DISTANCE = self.radius_reset
         self.FACTOR_NORMALISE_ANGLE = np.pi
         self.REWARD_MAX_COLLISION_DENSE = reward_max_collision
         self.LAMBDA_COLLISION = np.log(self.REWARD_MAX_COLLISION_DENSE + 1)
-        self.MAX_DISTANCE = 5.5
+        self.MAX_DISTANCE = self.radius_reset
         self.IS_PROGRESS = is_progress
         if self.IS_PROGRESS == True:
             self.LAMBDA = np.log(2)/5 # np.log(5)/5 let's choose one
@@ -130,8 +133,10 @@ class Environment():
         self.targets = world.target_positions
         self.x_targets = np.array(self.targets).T[0]
         self.y_targets = np.array(self.targets).T[1]
+        self.radius = 5.0
+        self.radius_reset = self.radius+1.0
 
-        self.coordinates_arena = [[(0.0,5.0),(4.2,9.3)], [(0.0, 0.0), (4.2, 4.3)], [(-5.0,-5.0),(-0.8,-0.7)], [(-5.0,-10.0),(-0.8, -5.7)]]
+        #self.coordinates_arena = [[(0.0,5.0),(4.2,9.3)], [(0.0, 0.0), (4.2, 4.3)], [(-5.0,-5.0),(-0.8,-0.7)], [(-5.0,-10.0),(-0.8, -5.7)]]
         
         
         # self.start_indexes = [0 for _ in range(len(self.robot_count))]
@@ -157,7 +162,7 @@ class Environment():
         self.rate = rospy.Rate(self.rate_freq)
         self.laser_count = 24
         
-        self.observation_dimension = self.laser_count + 1
+        self.observation_dimension = self.laser_count + 3
         self.action_dimension = 2
 
         # publishers for turtlebots
@@ -200,11 +205,28 @@ class Environment():
         idx: int
         ) -> bool:
         
-        coordinates = self.coordinates_arena[idx]
-        if (x[idx] > coordinates[0][0] and x[idx] < coordinates[1][0]) and \
-           (y[idx] > coordinates[0][1] and y[idx] < coordinates[1][1]):
+        # Case of Square Arena
+        # coordinates = self.coordinates_arena[idx]
+        # if (x[idx] > coordinates[0][0] and x[idx] < coordinates[1][0]) and \
+        #    (y[idx] > coordinates[0][1] and y[idx] < coordinates[1][1]):
+        #     return False
+        # else: return True
+
+        # Case of Circular Arena
+
+        if (x[idx]-self.x_starts[idx])**2 + (y[idx]-self.y_starts[idx])**2 < self.radius_reset**2:
             return False
         else: return True
+
+    def convert_angle_polar2cartesian(self,
+        array_angle: np.ndarray
+        )-> np.ndarray:
+        list_cartesian_angle = []
+        for angle in array_angle:
+            list_cartesian_angle.append([np.cos(angle), np.sin(angle)])
+        return np.array(list_cartesian_angle)
+
+
 
     def reset(self,
         robot_id: int=-1
@@ -220,7 +242,9 @@ class Environment():
         rospy.wait_for_service('/gazebo/reset_simulation')
         rospy.wait_for_service('/gazebo/set_model_state')
 
-        # Reset laser_buffer (for median filter)
+        # self.x_targets[id] = random.choice([self.x_starts[id] - np.random(self.radius-3, self.radius), self.x_starts[id] + np.random(self.radius-3, self.radius)])
+        # self.y_targets[id] = random.choice([np.sqrt(self.radius**2-self.x_targets[id]**2), -np.sqrt(self.radius**2-self.x_targets[id]**2)])
+        # Reset laser_buffer (or median filter)
         self.laser_buffer = [queue.Queue(self.num_laser_buffer) for i in range(self.robot_count)] #[[] for i in range(self.robot_count)]
         # set model states or reset world
         if robot_id == -1:
@@ -240,6 +264,10 @@ class Environment():
                     #target_index = np.random.randint(len(self.target_positions[id]))
                     self.x_starts[id] = self.x_starts_all[id][start_index]
                     self.y_starts[id] = self.y_starts_all[id][start_index]
+
+                    random_x = random.choice([self.x_starts[id] - np.random.uniform(self.radius-3, self.radius), self.x_starts[id] + np.random.uniform(self.radius-3, self.radius)])
+                    self.x_targets[id] = random.choice([self.x_starts[id] - np.random.uniform(self.radius-3, self.radius), self.x_starts[id] + np.random.uniform(self.radius-3, self.radius)])
+                    self.y_targets[id] = random.choice([np.sqrt(self.radius**2-(self.x_starts[id]-self.x_targets[id])**2), -np.sqrt(self.radius**2-(self.x_starts[id]-self.x_targets[id])**2)])
                     direction = 0.0 #+ (np.random.rand() * np.pi / 2) - (np.pi / 4)
                     # generate new message
                     self.reset_tb3_messages[id] = \
@@ -260,6 +288,7 @@ class Environment():
             try:
                 state_setter = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
                 state_setter(self.reset_tb3_messages[robot_id])
+                print(f"reset x: {self.x_targets}, reset y: {self.y_targets}")
                 #state_setter(self.reset_target_messages[robot_id])
                 self.robot_finished[robot_id] = False
             except rospy.ServiceException as e:
@@ -326,7 +355,6 @@ class Environment():
             self.publisher_turtlebots[i].publish(twists[i])
             #self.publisher_turtlebots[i].publish(Twist())
         # start of timing !!! changed to rospy time !!!
-        
         running_time = 0
         # move robots with action for time_step        
         
@@ -344,9 +372,10 @@ class Environment():
         while elapsed_sim_time < time_step - 2*self.rate_period:
             self.rate.sleep() 
             elapsed_sim_time = rospy.get_time() - start_time
-            print(f"elapsed_sim_time: {elapsed_sim_time}")
+            #print(f"elapsed_sim_time: {elapsed_sim_time}")
+            #print(f"break_time: {time.time() - break_time}")
             if time.time() - break_time > time_step:
-                print(f"break_time: {time.time() - break_time}")
+                
                 break
 
         # self.unpause()
@@ -391,6 +420,7 @@ class Environment():
                                             self.y_targets, y)
         robot_target_angle = robot_target_angle % (2 * np.pi)
         robot_target_angle_difference = (robot_target_angle - theta - np.pi) % (2 * np.pi) - np.pi
+        robot_target_cartesian_angle = self.convert_angle_polar2cartesian(robot_target_angle_difference)
         # get current laser measurements
         # for _ in range(self.num_laser_buffer):
         #     scan = self.laser_info_getter[i].get_msg()
@@ -410,15 +440,18 @@ class Environment():
         s_actions_angular = actions_angular_z.reshape((self.robot_count, 1))
         s_robot_target_distances = robot_target_distances.reshape((self.robot_count, 1)) /self.FACTOR_NORMALISE_DISTANCE 
         s_robot_target_angle_difference = robot_target_angle_difference.reshape((self.robot_count, 1)) / self.FACTOR_NORMALISE_ANGLE
+        s_robot_target_cartesian_angle = robot_target_cartesian_angle.reshape((self.robot_count, 2))
         assert robot_lasers.shape == (self.robot_count, 24), f'Wrong lasers dimension!: {robot_lasers.shape}'
         assert s_actions_linear.shape == (self.robot_count, 1), 'Wrong action linear dimension!'
         assert s_actions_angular.shape == (self.robot_count, 1), 'Wrong action angular dimension!'
         assert s_robot_target_distances.shape == (self.robot_count, 1), 'Wrong distance to target!'
-        assert s_robot_target_angle_difference.shape == (self.robot_count, 1), 'Wrong angle to target!'
+        assert s_robot_target_cartesian_angle.shape == (self.robot_count, 2), 'Wrong angle to target!'
+        #assert s_robot_target_angle_difference.shape == (self.robot_count, 1), 'Wrong angle to target!'
         states = np.hstack((robot_lasers, 
                             #s_actions_linear, s_actions_angular, 
-                            #s_robot_target_distances, 
-                            s_robot_target_angle_difference))
+                            s_robot_target_distances,
+                            #s_robot_target_angle_difference,
+                            s_robot_target_cartesian_angle))
         assert states.shape == (self.robot_count, self.observation_dimension), 'Wrong states dimension!'
         
         # rewards
@@ -670,6 +703,7 @@ class Environment():
         lasers = []
         collisions = [False for i in range(self.robot_count)]
         id_collisions = [0 for i in range(self.robot_count)]
+        print(f"median_scan_ranges:{median_scan_ranges}")
         # each robot
         for i in range(self.robot_count):
             lasers.append(median_scan_ranges[i])
@@ -734,6 +768,7 @@ class Environment():
         robot_target_angle = self.get_angle(self.x_targets, x, 
                                             self.y_targets, y)
         robot_target_angle_difference = (robot_target_angle - theta - np.pi) % (2 * np.pi) - np.pi
+        robot_target_cartesian_angle = self.convert_angle_polar2cartesian(robot_target_angle_difference)
         # get current laser measurements
         self.put_scan_into_buffer()
 
@@ -748,15 +783,18 @@ class Environment():
         s_actions_linear = np.zeros((self.robot_count, 1))
         s_actions_angular = np.zeros((self.robot_count, 1))
         s_robot_target_distances = robot_target_distances.reshape((self.robot_count, 1))
-        s_robot_target_angle_difference = robot_target_angle_difference.reshape((self.robot_count, 1))
+        s_robot_target_angle_difference = robot_target_angle_difference.reshape((self.robot_count, 1)) / self.FACTOR_NORMALISE_ANGLE
+        s_robot_target_cartesian_angle = robot_target_cartesian_angle.reshape((self.robot_count, 2))
         assert robot_lasers.shape == (self.robot_count, 24), f'Wrong lasers dimension!: {robot_lasers.shape}'
         assert s_actions_linear.shape == (self.robot_count, 1), 'Wrong action linear dimension!'
         assert s_actions_angular.shape == (self.robot_count, 1), 'Wrong action angular dimension!'
         assert s_robot_target_distances.shape == (self.robot_count, 1), 'Wrong distance to target!'
-        assert s_robot_target_angle_difference.shape == (self.robot_count, 1), 'Wrong angle to target!'
+        assert s_robot_target_cartesian_angle.shape == (self.robot_count, 2), 'Wrong angle to target!'
+        #assert s_robot_target_angle_difference.shape == (self.robot_count, 1), 'Wrong angle to target!'
         states = np.hstack((robot_lasers, 
                             #s_actions_linear, s_actions_angular, 
-                            #s_robot_target_distances, 
-                            s_robot_target_angle_difference))
+                            s_robot_target_distances,
+                            #s_robot_target_angle_difference,
+                            s_robot_target_cartesian_angle))
         assert states.shape == (self.robot_count, self.observation_dimension), 'Wrong states dimension!'
         return states

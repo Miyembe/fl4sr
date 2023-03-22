@@ -41,8 +41,8 @@ class DDPG:
         self.ACTOR_HIDDEN_LAYERS =  [num_parameters,num_parameters]
         self.CRITIC_HIDDEN_LAYERS = [num_parameters,num_parameters]
         # training parameters
-        self.LEARNING_RATE_ACTOR = learning_rate
-        self.LEARNING_RATE_CRITIC = learning_rate
+        self.LEARNING_RATE_ACTOR = 0.0001#learning_rate
+        self.LEARNING_RATE_CRITIC = 0.001#learning_rate
         self.BATCH_SIZE = batch_size
         self.GAMMA = discount_factor
         # update parameters
@@ -68,6 +68,7 @@ class DDPG:
         self.critic_target.cuda()
         self.critic_optimizer = optim.Adam(self.critic.parameters(),
                                            self.LEARNING_RATE_CRITIC)
+        self.criterion = nn.SmoothL1Loss()
         update_parameters(self.critic_target, self.critic)
         return
 
@@ -92,12 +93,14 @@ class DDPG:
         return action
     
     def train(self
-        ) -> None:
+        ) -> tuple:
         """Train actor and critic neural networks.
         """
         # check amount of samples in buffer
         if self.replay_buffer._values_count < self.BATCH_SIZE:
-            return
+            policy_loss = 0.0
+            critic_loss = 0.0
+            return tuple([policy_loss, critic_loss])
         # sample transitions
         if isinstance(self.replay_buffer, PrioritizedExperienceReplayBuffer):
             transitions, weights = self.replay_buffer.sample(self.BATCH_SIZE)
@@ -122,15 +125,15 @@ class DDPG:
         q_current_t = self.critic(states_actions_t)
         q_target_next_t = self.critic_target(states_actions_next_t)
         q_target_t = rewards_t + finished_t * self.GAMMA * q_target_next_t
-        criterion = nn.MSELoss()
+        
         if isinstance(self.replay_buffer, PrioritizedExperienceReplayBuffer):
             q_difference_t = q_target_t - q_current_t
             q_difference_weighted_t = torch.mul(q_difference_t, weights_t)
             zeros_t = torch.zeros(q_difference_weighted_t.shape).cuda()
-            critic_loss = criterion(q_difference_weighted_t, zeros_t)
+            critic_loss = self.criterion(q_difference_weighted_t, zeros_t)
             self.replay_buffer.update(q_difference_t.detach().cpu().numpy())
         else:
-            critic_loss = criterion(q_target_t, q_current_t)
+            critic_loss = self.criterion(q_target_t, q_current_t)
         critic_loss.backward()
         self.critic_optimizer.step()
         # actor update
@@ -141,7 +144,10 @@ class DDPG:
         policy_loss = policy_loss.mean()
         policy_loss.backward()
         self.actor_optimizer.step()
-        return
+
+        #print(f"critic_loss: {critic_loss}, q_target_t: {q_target_t}, q_current_t: {q_current_t}")
+        print(f"policy_loss: {policy_loss}, critic_loss: {critic_loss}")
+        return tuple([policy_loss.detach().cpu().numpy(), critic_loss.detach().cpu().numpy()])
 
     def update_targets(self,
         hard: bool=False

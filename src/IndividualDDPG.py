@@ -1,6 +1,7 @@
 #! /usr/bin/env python3.8
 import sys
 import os
+import torch
 HOME = os.environ['HOME']
 #sys.path.append(HOME + '/catkin_ws/src/fl4sr/src')
 import numpy as np
@@ -15,6 +16,42 @@ from Environment import Environment
 from worlds import World
 from DDPG import DDPG
 from buffers import BasicBuffer, PrioritizedExperienceReplayBuffer, Transition
+import datetime
+import random
+import matplotlib
+import matplotlib.pyplot as plt
+import time
+import cv2
+from PIL import Image
+import imageio
+from celluloid import Camera
+
+
+def write_video_PIL(frames, file_name, fps=30):
+
+    imageio.mimwrite(uri=file_name, ims=frames, fps=fps, format=".gif")
+
+
+def write_frame_number(frame, text):
+    frame = cv2.UMat(frame)
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.3
+    font_thickness = 1
+    font_color = (0, 0, 255)  # BGR format for red color
+
+    # Define the text to be added and its position
+    text_position = (2, 10)
+
+    # Add the text to the image
+    cv2.putText(
+        frame, text, text_position, font, font_scale, font_color, font_thickness
+    )
+
+    new_frame = frame.get()
+    return new_frame
+
+
+
 
 
 class IndividualDDPG():
@@ -60,9 +97,10 @@ class IndividualDDPG():
         self.TIME_UPDATE = 2
         self.TIME_LOGGER = 16
         self.TIME_SAVE = 25
+        self.ANIMATION_UPDATE = 64
         # random actions
         self.EPSILON = 0.9
-        self.EPSILON_DECAY = 0.99997
+        self.EPSILON_DECAY = 0.9997
         # init experiment and error values
         self.episode_count = episode_count
         self.episode_step_count = episode_step_count
@@ -107,6 +145,12 @@ class IndividualDDPG():
                 else:
                     self.NAME = 'IDDPG'
         print(f"NAME = {self.NAME}")
+
+        # actor critic output related
+        self.range_x = [0, 1]
+        self.range_y = [-1, 1]
+        self.num_points = 10
+
         self.init_data()
         # debugging
         self.debug = False
@@ -195,8 +239,12 @@ class IndividualDDPG():
         """Initializes data containers.
         """
         self.average_rewards = np.zeros((self.episode_count, self.robot_count))
+        self.average_policy_loss = np.zeros((self.episode_count, self.robot_count))
+        self.average_critic_loss = np.zeros((self.episode_count, self.robot_count))
         self.robots_succeeded_once = np.zeros((self.episode_count, self.robot_count), dtype=bool)        
         self.robots_finished = np.zeros((self.episode_count, self.robot_count), dtype=bool)
+        self.list_critic_frames = [[] for _ in range(self.robot_count)]
+        self.list_policy_frames = [[] for _ in range(self.robot_count)]
         self.data = []      
         return
 
@@ -245,6 +293,12 @@ class IndividualDDPG():
         self.parameters_save()
         self.print_starting_info()
         total_rewards = np.zeros(self.robot_count)
+        total_policy_losses = np.zeros(self.robot_count)
+        total_critic_losses = np.zeros(self.robot_count)
+
+        # list_critic_frames = [[] for _ in range(self.robot_count)]
+        # list_actor_frames = [[] for _ in range(self.robot_count)]
+
         print(f"self.env: {self.env}")
         # epizode loop
         for episode in range(self.episode_error, self.episode_count):
@@ -252,6 +306,8 @@ class IndividualDDPG():
             print(f"environment reset.")
             current_states = self.environment.get_current_states()
             data_total_rewards = np.zeros(self.robot_count)
+            data_total_policy_losses = np.zeros(self.robot_count)
+            data_total_critic_losses = np.zeros(self.robot_count)
             if self.episode_error != episode:
                 self.episode_step_error = 0
             for step in range(self.episode_step_error, self.episode_step_count):
@@ -264,7 +320,20 @@ class IndividualDDPG():
                 self.buffers_save_transitions(current_states, actions, rewards, new_states, robots_finished)
                 # train
                 if step % self.TIME_TRAIN == 0:
-                    self.agents_train()
+                    array_policy_loss, array_critic_loss = self.agents_train()
+                    data_total_policy_losses += array_policy_loss
+                    data_total_critic_losses += array_critic_loss
+                    
+                # if step % self.ANIMATION_UPDATE == 0:
+                #     for i in range(self.robot_count):
+                #         array_q_values = self.agent_dist_critic(current_states, i)
+                #         self.list_critic_frames[i].append(array_q_values)
+                #         array_policy_output = self.agent_dist_actor(i)
+                #         self.list_policy_frames[i].append(array_policy_output)
+                #         # array_linear_output = array_policy_output[:][1]
+                #         # array_actor_output = array_policy_output[:][0]
+                #         #print(f"policy output for agent {i}: {array_policy_output}")
+
                 # update target
                 if step % self.TIME_TARGET == 0:
                     self.agents_target()
@@ -279,7 +348,7 @@ class IndividualDDPG():
                     print('{}.{}'.format(episode, step))
                     print(actions)
                 current_states = new_states
-            self.data_collect(episode, data_total_rewards, robots_succeeded_once)
+            self.data_collect(episode, data_total_rewards, data_total_policy_losses, data_total_critic_losses, robots_succeeded_once)
             # print info
             print('Average episode rewards: {}'.format(self.average_rewards[episode]))
             # episode federated update
@@ -394,6 +463,75 @@ class IndividualDDPG():
             actions.append(self.agents[i].select_action(states[i]))
         actions = np.array(actions)
         return actions
+    
+    def agent_dist_critic(self,
+        states: np.ndarray,
+        id: int
+        ):
+        
+        actions = []
+        num_samples = self.num_points
+        range_linear_action = self.range_x
+        range_linear_splice = (range_linear_action[1] - range_linear_action[0])/num_samples
+        range_angular_action = self.range_y
+        range_angular_splice = (range_angular_action[1] - range_angular_action[0])/num_samples
+
+        
+        array_linear = np.linspace(range_linear_action[0], range_linear_action[1], num_samples)
+        array_angular = np.linspace(range_angular_action[0], range_angular_action[1], num_samples)
+        array_state_action = torch.zeros([num_samples, num_samples])
+        critic = self.agents[id].critic
+        state = states[id]
+
+        #array_linear, array_angular = np.mgrid[range_linear_action[0]:range_linear_action[1]:range_linear_splice,
+        #                                        range_angular_action[0]:range_angular_action[1]:range_angular_splice]
+    
+        list_state = []
+        list_action = []
+        for i, linear in enumerate(array_linear):
+            for j, angular in enumerate(array_angular):
+                if isinstance(state, np.ndarray):
+                    list_state.append(state) 
+                    #state = torch.from_numpy(state).type(torch.cuda.FloatTensor)
+                action = [angular, linear]
+                list_action.append(action)
+                #action = torch.Tensor([angular, linear]).type(torch.cuda.FloatTensor)
+                #state_action_t = [state, action]
+                #array_state_action[i, j] = state_action_t
+        tensor_state = torch.Tensor(list_state).cuda()
+        tensor_action = torch.Tensor(list_action).cuda()
+        tuple_state_action = (tensor_state, tensor_action)
+        #tensor_state_action = array_state_action.cuda()
+        #print(f"tensor_state_action: {tensor_state_action}")
+        tensor_critic = critic(tuple_state_action)
+        array_critic = tensor_critic.detach().cpu().numpy()
+        return array_critic
+
+    def agent_dist_actor(self,
+        id: int
+        ):
+        range_angle_diff = self.range_y
+        num_samples = self.num_points
+        array_angle_diff = np.linspace(range_angle_diff[0], range_angle_diff[1], num_samples)
+        list_states = []
+        list_actor = []
+        actor = self.agents[id].actor
+        for i, state in enumerate(array_angle_diff):
+            list_obs = np.zeros(24)
+            list_obs = list(list_obs)
+            list_obs.append(state)
+            #array_obs = np.array(list_obs)
+            # if isinstance(array_obs, np.ndarray):
+            #     array_obs = torch.from_numpy(array_obs).type(torch.cuda.FloatTensor)
+            list_states.append(list_obs)
+        array_states = np.array(list_states)
+        tensor_states = torch.from_numpy(array_states).type(torch.cuda.FloatTensor)
+        policy_output = actor(tensor_states)
+        list_actor.append(policy_output.detach().cpu().numpy())
+        array_actor = np.array(list_actor)
+        print(f"array actor: {array_actor}, shape: {array_actor.shape}")
+        return array_actor
+
         
     def buffers_save_transitions(self, 
         s: np.ndarray, 
@@ -429,6 +567,8 @@ class IndividualDDPG():
         # get current actions
         angles_a = actions[:, 0]
         linears_a = actions[:, 1]
+        print(f"prev_angles_a: {angles_a}")
+        print(f"prev_linears_a: {linears_a}")
         # where to use randoms and generate them
         randoms = np.random.uniform(0, 1, self.robot_count)
         use_randoms = np.where(randoms < self.EPSILON, 1, 0)
@@ -439,6 +579,8 @@ class IndividualDDPG():
         linears = (1 - use_randoms) * linears_a + use_randoms * linears_r
         angles = np.clip(angles, -1, 1)
         linears = np.clip(linears, 0, 1)
+        print(f"cur_angles_a: {angles_a}")
+        print(f"cur_linears_a: {linears_a}")
         # combine new actions
         new_actions = np.array((angles, linears)).T
         # update random rate
@@ -449,9 +591,15 @@ class IndividualDDPG():
     def agents_train(self):
         """Train all agents.
         """
+        list_policy_loss = []
+        list_critic_loss = []
         for agent in self.agents:
-            agent.train() 
-        return
+            tuple_loss = agent.train()
+            list_policy_loss.append(tuple_loss[0])
+            list_critic_loss.append(tuple_loss[1])
+        array_policy_loss = np.array(list_policy_loss)
+        array_critic_loss = np.array(list_critic_loss)
+        return array_policy_loss, array_critic_loss
 
     def agents_target(self):
         """Update target networks of all agents.
@@ -502,7 +650,9 @@ class IndividualDDPG():
 
     def data_collect(self, 
         episode,
-        total_rewards, 
+        total_rewards,
+        total_policy_loss, 
+        total_critic_loss,
         robots_succeeded_once
         ) -> None:
         """Collect data from learning experiments.
@@ -512,6 +662,8 @@ class IndividualDDPG():
             robots_succeeded_once (np.ndarray): ...
         """
         self.average_rewards[episode] = total_rewards / self.episode_step_count
+        self.average_policy_loss[episode] = total_policy_loss / (self.episode_step_count/self.TIME_TRAIN)
+        self.average_critic_loss[episode] = total_critic_loss / (self.episode_step_count/self.TIME_TRAIN)
         self.robots_succeeded_once[episode] = robots_succeeded_once
         if episode != 0:
             same_indexes = np.where(self.average_rewards[episode-1] == self.average_rewards[episode])[0]
@@ -566,9 +718,63 @@ class IndividualDDPG():
         """
         np.save(self.path_log + '/rewards'.format(), 
                 self.average_rewards)
+        np.save(self.path_log + '/policy_loss'.format(), 
+                self.average_policy_loss)
+        np.save(self.path_log + '/critic_loss'.format(), 
+                self.average_critic_loss)
         np.save(self.path_log + '/succeded'.format(),
                 self.robots_succeeded_once)
+
         return
+
+    def save_actor_critic_output_animation(self,
+        list_critic_frames: list,
+        list_actor_frames: list,
+        range_x: list,
+        range_y: list,
+        num_points: int,
+        file_name: str,
+        ):
+        y, x = np.meshgrid(np.linspace(range_y[0], range_y[1], num_points), np.linspace(range_x[0], range_x[1], num_points))
+        fig, axs = plt.subplots(3, dpi=100)
+        camera = Camera(fig)
+        list_actor_frames = np.array(list_actor_frames).squeeze()
+        #print(f"list_critic_frames: {list_critic_frames}")
+        x_actor = np.linspace(-1, 1, num_points)
+        num_frame = len(list_critic_frames)
+        for i in range(num_frame):
+            z = list_critic_frames[i]
+            z = z.reshape(num_points, num_points)
+            z = z[:-1, :-1]
+            z_min, z_max= -np.abs(z).max(), np.abs(z).max()
+            c = axs[0].pcolormesh(x, y, z, cmap='RdBu', vmin=z_min, vmax=z_max)
+            axs[0].set_title('critic_output', fontsize=10)
+            axs[0].set_xlabel('Linear Velocity', fontsize=8)
+            axs[0].set_ylabel('Angular Velocity', fontsize=8)
+            axs[0].axis([x.min(), x.max(), y.min(), y.max()])
+            #axs[0].colorbar(c, ax=ax)
+            #axs[1].plot(xlist_linear_frames[i][np.newaxis, :], cmap="plasma", aspect="auto")
+            #axs[2].plot(list_angular_frames[i][np.newaxis, :], cmap="plasma", aspect="auto")
+            axs[1].set_title('linear velocity output', fontsize=10)
+            axs[1].plot(x_actor, list_actor_frames[i][:, 1])
+            axs[1].set_xlabel('Normalised Angle Difference (-1 - 1)', fontsize=8)
+            axs[1].set_ylabel('Linear Velocity [0 - 1]', fontsize=8)
+            axs[1].set_ylim(-0.2, 1.2)
+            axs[1].text(0.7, 0.5, f'Episode: {self.ANIMATION_UPDATE * i // self.episode_step_count}', style ='italic',
+            fontsize = 12, color ="green")
+            axs[1].text(0.7, 0.2, f'Step {self.ANIMATION_UPDATE * i % self.episode_step_count}', style ='italic',
+            fontsize = 12, color ="green")
+            axs[2].set_title('angular velocity output', fontsize=10)
+            axs[2].plot(x_actor, list_actor_frames[i][:, 0])
+            axs[2].set_xlabel('Normalised Angle Difference (-1 - 1)' , fontsize=8)
+            axs[2].set_ylabel('Angular Velocity [-1 - 1]', fontsize=8)
+            axs[2].set_ylim(-1.2, 1.2)
+
+            camera.snap()
+
+
+        animation = camera.animate()
+        animation.save(f'{file_name}.gif', writer ='imagemagick')
 
     def plot_save(self,
         log_path:str
@@ -576,7 +782,7 @@ class IndividualDDPG():
         """Save training curve plot of rewards.npy .
         Args:
             log_path (str): ... . Defaults to the path of rewards.npy saved by data_save.
-        """
+        """ 
         figure, ax = plt.subplots(1, 1, figsize=(6, 6), dpi=300)
         #plt.xlabel('Episodes')
         #plt.ylabel('Rewards')
@@ -599,6 +805,16 @@ class IndividualDDPG():
         figure_name = self.name_run +'.png'
         figure_path = os.path.join(self.path_log, figure_name)
         figure.savefig(figure_path)
+
+        # for i in range(self.robot_count):
+        #     path_actor_critic_i = os.path.join(self.path_log, f'actor_critic_output_{i}')
+        #     self.save_actor_critic_output_animation(
+        #         self.list_critic_frames[i],
+        #         self.list_policy_frames[i],
+        #         self.range_x,
+        #         self.range_y,
+        #         self.num_points,
+        #         path_actor_critic_i)
 
     def args_save(self,
         args
@@ -662,6 +878,8 @@ class IndividualDDPG():
         with open(self.path_log + '/data-{}.pkl'.format(episode), 'wb') as f:
             pickle.dump(self.data, f)
         return
+    
+    
     def parameters_save(self
         ) -> None:
         """Save used parameters to file.

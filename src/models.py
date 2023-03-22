@@ -37,9 +37,9 @@ class Actor(nn.Module):
                 self.layers.append(nn.Linear(hidden_layers[i], hidden_layers[i+1]))
             elif i == self.hidden_dimension - 1:
                 self.layers.append(nn.Linear(hidden_layers[i], 1))
-                nn.init.xavier_normal_(self.layers[-1].weight)
+                #nn.init.xavier_normal_(self.layers[-1].weight)
                 self.layers.append(nn.Linear(hidden_layers[i], 1))
-                nn.init.xavier_normal_(self.layers[-1].weight)
+                #nn.init.xavier_normal_(self.layers[-1].weight)
             else:
                 self.layers.append(nn.Linear(hidden_layers[i], hidden_layers[i+1]))
         self.layers_len = len(self.layers)
@@ -47,6 +47,7 @@ class Actor(nn.Module):
         self.ReLU = nn.ReLU()
         self.tanh = nn.Tanh()
         self.sigmoid = nn.Sigmoid()
+        self.bn = nn.BatchNorm1d(num_features=hidden_layers[0])
         return
     
     def forward(self, 
@@ -67,7 +68,11 @@ class Actor(nn.Module):
                 output1 = self.sigmoid(self.layers[i + 1](x))
             else:
                 x = self.ReLU(self.layers[i](x))
-        return torch.cat((output0, output1), dim=1)
+        x_dim = x.dim()
+        if x_dim > 1:
+            return torch.cat((output0, output1), dim=1)
+        else:
+            return torch.cat((output0, output1), dim=0)
 
 
 class Critic(nn.Module):
@@ -106,6 +111,9 @@ class Critic(nn.Module):
         self.layers_len = len(self.layers)
         # prepare activation functions
         self.ReLU = nn.ReLU()
+
+        # Batch Normalisation Layer
+        self.bn = nn.BatchNorm1d(num_features=hidden_layers[0])
         return
     
     def forward(self,
@@ -120,12 +128,19 @@ class Critic(nn.Module):
             torch.tensor: 1d output tensor.
         """
         x, a = y
-        x = torch.cat((x, a), 1)
+        x_dim = x.dim()
+        if x_dim > 1:
+            x = torch.cat((x, a), 1)
+        else:
+            x = torch.cat((x,a))
+    
         # run computation
         for i in range(self.layers_len):
             if i == self.layers_len - 1:
                 output = self.layers[i](x)
+                
             else:
+                output = self.layers[i](x)
                 x = self.ReLU(self.layers[i](x))
         return output
 

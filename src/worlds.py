@@ -212,3 +212,23 @@ REAL_WORLD_4_diff_reward = World(
                       [-1.2, -9.8]]
 )
 
+
+
+REAL_WORLD_4_circle = World(
+    robot_alives=[True, 
+                  True, 
+                  True, 
+                  True],
+    x_starts=[[-18.0], 
+             [-6.0],
+             [6.0],
+             [18.0]],
+    y_starts=[[0.0], 
+             [0.0],
+             [0.0], 
+             [0.0]],
+    target_positions=[[-18.0, 6.0], 
+                      [-6.0, -6.0], 
+                      [1.0, 0.0], 
+                      [23.0, 0.0]]
+)

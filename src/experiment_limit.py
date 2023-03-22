@@ -29,6 +29,7 @@ from worlds import REAL_WORLD
 from worlds import REAL_SIM_WORLD
 from worlds import REAL_WORLD_8
 from worlds import REAL_WORLD_4_diff_reward
+from worlds import REAL_WORLD_4_circle
 # GLOBAL VARIABLES
 DDPG = None
 METHODS = {'IDDPG': IndividualDDPG,
@@ -40,7 +41,7 @@ METHODS = {'IDDPG': IndividualDDPG,
 EPISODE_COUNT = 125
 EPISODE_STEP_COUNT = 1024
 
-LEARN_WORLD = REAL_WORLD_4_diff_reward
+LEARN_WORLD = REAL_WORLD_4_circle
 
 EVAL_WORLD = EVAL_WORLD_0
 
@@ -223,7 +224,7 @@ def experiment_real(
         bool: If program finished correctly.
     """
     # SETTINGS
-    EPISODE_COUNT = 5
+    EPISODE_COUNT = 1
     # set seeds
     if seed is not None:
         random.seed(seed)
@@ -377,12 +378,12 @@ if __name__ == '__main__':
     parser.add_argument(
         '--learning_rate', 
         type=float,
-        default=0.001,
+        default=0.0001,
         help='Learning rate of the Adam optimiser in DDPG')
     parser.add_argument(
         '--batch_size', 
         type=int,
-        default=512,
+        default=64,
         help='batch_size of DDPG algorithm for each run of optimisation step.')
     parser.add_argument(
         '--buffer_type', 
