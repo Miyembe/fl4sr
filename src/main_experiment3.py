@@ -17,7 +17,7 @@ sys.path.append(HOME + '/catkin_ws/src/fl4sr/src')
 
 dict_reward = {'reward_goal': [100.0], 'reward_collision': [-30.0], 'reward_progress': [40.0]}
 dict_update_period = {'updatePeriod': [1]}
-dict_batch_size = {'batch_size': [64,128,256,512]}#[16, 32, 64, 128, 256, 512]
+dict_batch_size = {'batch_size': [32,64,128,256,512]}#[16, 32, 64, 128, 256, 512]
 dict_seed = {'seed': [123,323,434]}
 dict_algorithms = {'algorithms': ['IDDPG']}
 

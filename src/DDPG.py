@@ -41,7 +41,7 @@ class DDPG:
         self.ACTOR_HIDDEN_LAYERS =  [num_parameters,num_parameters]
         self.CRITIC_HIDDEN_LAYERS = [num_parameters,num_parameters]
         # training parameters
-        self.LEARNING_RATE_ACTOR = 0.0001#learning_rate
+        self.LEARNING_RATE_ACTOR = 0.001#learning_rate
         self.LEARNING_RATE_CRITIC = 0.001#learning_rate
         self.BATCH_SIZE = batch_size
         self.GAMMA = discount_factor

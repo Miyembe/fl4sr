@@ -54,9 +54,9 @@ class Environment():
         self.GOAL_RANGE = 0.5
         #print(f"list_reward: {list_reward}")
         if list_reward == 1:
-            self.ARR_REWARD_GOAL = np.array([100, 10, 100, 10])
+            self.ARR_REWARD_GOAL = np.array([100, 100, 100, 100])
             self.ARR_REWARD_COLLISION = np.array([-20, -20, -20, -20])
-            self.ARR_REWARD_PROGRESS = np.array([40, 4, 40, 4])
+            self.ARR_REWARD_PROGRESS = np.array([40, 40, 40, 40])
         if list_reward == 2:
             self.ARR_REWARD_GOAL = np.array([100, 100, 100, 100])
             self.ARR_REWARD_COLLISION = np.array([0, -20, -50, -30])
@@ -136,6 +136,13 @@ class Environment():
         self.radius = 5.0
         self.radius_reset = self.radius+1.0
 
+        self.obs_positions = world.obs_positions
+        self.x_obs = np.array(self.obs_positions).T[0]
+        self.y_obs = np.array(self.obs_positions).T[1]
+        self.range_r_obs = [2,3]
+        self.range_theta_obs = [-np.pi/6, np.pi/6]
+        print(f"obs_positions: {self.obs_positions}")
+
         #self.coordinates_arena = [[(0.0,5.0),(4.2,9.3)], [(0.0, 0.0), (4.2, 4.3)], [(-5.0,-5.0),(-0.8,-0.7)], [(-5.0,-10.0),(-0.8, -5.7)]]
         
         
@@ -150,8 +157,15 @@ class Environment():
             for id, rid in enumerate(self.robot_indexes)]
         self.reset_target_messages = \
             [self.create_model_state('target_{}'.format(rid), 
-                                     self.targets[id][0], 
-                                     self.targets[id][1], 
+                                     self.x_targets[id], 
+                                     self.y_targets[id], 
+                                     0)
+            for id, rid in enumerate(self.robot_indexes)]
+
+        self.reset_obs_messages = \
+            [self.create_model_state('obs_{}'.format(rid), 
+                                     self.x_obs[id], 
+                                     self.y_obs[id], 
                                      0)
             for id, rid in enumerate(self.robot_indexes)]
         self.command_empty = Twist()
@@ -226,6 +240,33 @@ class Environment():
             list_cartesian_angle.append([np.cos(angle), np.sin(angle)])
         return np.array(list_cartesian_angle)
 
+    def choose_random_obs_pose2d(self, 
+        range_r_obs: list,
+        range_theta_obs: list,
+        coordinates_target: list,
+        coordinates_i: list
+        ) -> list:
+        r = np.random.uniform(range_r_obs[0], range_r_obs[1])
+        theta = np.random.uniform(range_theta_obs[0], range_theta_obs[1])
+        print(f"coordinates_target: {coordinates_target}")
+        print(f"coordinates_i: {coordinates_i}")
+        r_target = np.sqrt((coordinates_target[0]-coordinates_i[0])**2 + (coordinates_target[1] - coordinates_i[1])**2)
+        print(f"r: {r}")
+        print(f"r_target: {r_target}")
+        if coordinates_target[1] >= coordinates_i[1]:
+            theta_i = np.arccos((coordinates_target[0] - coordinates_i[0])/r_target)
+        else: theta_i = np.arccos((coordinates_target[0] - coordinates_i[0])/r_target)
+        
+        print(f"theta_i: {theta_i}")
+        print(f"theta: {theta}")
+        x = r*np.cos(theta_i + theta)
+        y = r*np.sin(theta_i + theta)
+        print(f"x: {x}")
+        print(f"y: {y}")
+        x_obs = coordinates_i[0] + x 
+        y_obs = coordinates_i[1] + y 
+        print(f"[x_obs: {x_obs}, y_obs: {y_obs}]")
+        return x_obs, y_obs
 
 
     def reset(self,
@@ -265,18 +306,34 @@ class Environment():
                     self.x_starts[id] = self.x_starts_all[id][start_index]
                     self.y_starts[id] = self.y_starts_all[id][start_index]
 
-                    random_x = random.choice([self.x_starts[id] - np.random.uniform(self.radius-3, self.radius), self.x_starts[id] + np.random.uniform(self.radius-3, self.radius)])
-                    self.x_targets[id] = random.choice([self.x_starts[id] - np.random.uniform(self.radius-3, self.radius), self.x_starts[id] + np.random.uniform(self.radius-3, self.radius)])
+                    random_x = random.choice([self.x_starts[id] - np.random.uniform(self.radius-2, self.radius), self.x_starts[id] + np.random.uniform(self.radius-2, self.radius)])
+                    self.x_targets[id] = random.choice([self.x_starts[id] - np.random.uniform(self.radius-2, self.radius), self.x_starts[id] + np.random.uniform(self.radius-2, self.radius)])
                     self.y_targets[id] = random.choice([np.sqrt(self.radius**2-(self.x_starts[id]-self.x_targets[id])**2), -np.sqrt(self.radius**2-(self.x_starts[id]-self.x_targets[id])**2)])
                     direction = 0.0 #+ (np.random.rand() * np.pi / 2) - (np.pi / 4)
+                    
+                    self.x_obs[id], self.y_obs[id] = self.choose_random_obs_pose2d(self.range_r_obs, self.range_theta_obs, [self.x_targets[id], self.y_targets[id]],
+                                                                   [self.x_starts[id], self.y_starts[id]])
                     # generate new message
                     self.reset_tb3_messages[id] = \
                         self.create_model_state('tb3_{}'.format(rid), 
                                              self.x_starts[id], 
                                              self.y_starts[id],
                                              direction)
+                    self.reset_target_messages[id] = \
+                        self.create_model_state('target_{}'.format(rid), 
+                                                self.x_targets[id], 
+                                                self.y_targets[id], 
+                                                0)
+                    self.reset_obs_messages[id] = \
+                        self.create_model_state('obs_{}'.format(rid), 
+                                                self.x_obs[id], 
+                                                self.y_obs[id], 
+                                                0)
                     # reset enviroment position
                     state_setter(self.reset_tb3_messages[id])
+                    state_setter(self.reset_target_messages[id])
+                    state_setter(self.reset_obs_messages[id])
+                    
                     #state_setter(self.reset_target_messages[id])
                     self.robot_finished[id] = False
                 print('Starts x:', self.x_starts)
@@ -288,8 +345,20 @@ class Environment():
             try:
                 state_setter = rospy.ServiceProxy('/gazebo/set_model_state', SetModelState)
                 state_setter(self.reset_tb3_messages[robot_id])
-                print(f"reset x: {self.x_targets}, reset y: {self.y_targets}")
-                #state_setter(self.reset_target_messages[robot_id])
+                self.reset_target_messages = \
+                    [self.create_model_state('target_{}'.format(rid), 
+                                            self.x_targets[id], 
+                                            self.y_targets[id], 
+                                            0)
+                    for id, rid in enumerate(self.robot_indexes)]
+                self.reset_obs_messages = \
+                    [self.create_model_state('obs_{}'.format(rid), 
+                                            self.x_obs[id], 
+                                            self.y_obs[id], 
+                                            0)
+                    for id, rid in enumerate(self.robot_indexes)]
+                state_setter(self.reset_target_messages[robot_id])
+                state_setter(self.reset_obs_messages[robot_id])
                 self.robot_finished[robot_id] = False
             except rospy.ServiceException as e:
                 print('Failed state setter!', e)
@@ -487,16 +556,17 @@ class Environment():
         reward_time = self.REWARD_TIME
         self.robot_finished[np.where(robot_collisions)] = True
         # total reward
-        rewards = reward_distance + reward_goal #+ #reward_collision + reward_time
+        rewards = reward_distance + reward_goal + reward_collision #+ reward_time
         #print(f"robot_collisions: {robot_collisions}")
         #print(f"robot_lasers: {robot_lasers}")
         print(f"rewards: {rewards}")
         print(f"reward_distance: {reward_distance}")
         print(f"progress_distance: {progress_distance}")
-        print(f"reward_collision: {reward_collision}")
+        #print(f"reward_collision: {reward_collision}")
         #print(f"reward_time: {reward_time}")
         print(f"reward_goal: {reward_goal}")
-        
+        print(f"x_target: {self.x_targets}")
+        print(f"y_target: {self.y_targets}")
         # set current target distance as previous
         distances_help = self.robot_target_distances_previous.copy()
         self.robot_target_distances_previous = robot_target_distances.copy()
@@ -703,7 +773,6 @@ class Environment():
         lasers = []
         collisions = [False for i in range(self.robot_count)]
         id_collisions = [0 for i in range(self.robot_count)]
-        print(f"median_scan_ranges:{median_scan_ranges}")
         # each robot
         for i in range(self.robot_count):
             lasers.append(median_scan_ranges[i])

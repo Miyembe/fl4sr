@@ -13,7 +13,8 @@ class World():
         robot_alives: list,
         x_starts: list,
         y_starts: list,
-        target_positions: list
+        target_positions: list,
+        obs_positions: list,
         ) -> None:
 
         assert len(x_starts) == len(y_starts) == len(target_positions) == len(robot_alives), 'World creation len error!'
@@ -25,13 +26,15 @@ class World():
         self.x_starts = [x_starts[i] for i in self.robot_indexes] # x_starts
         self.y_starts = [y_starts[i] for i in self.robot_indexes] # y_starts
         self.target_positions = [target_positions[i] for i in self.robot_indexes] # target_positions
+        self.obs_positions = [obs_positions[i] for i in self.robot_indexes]
 
 
 BASELINE_WORLD = World(
     robot_alives=[True],
     x_starts=[6.0],
     y_starts=[6.0],
-    target_positions=[[2.0, 2.0]]
+    target_positions=[[2.0, 2.0]],
+    obs_positions=[[-18.0, 3.0]]
 )
 
 TURTLEBOT_WORLD_6 = World(
@@ -54,6 +57,12 @@ TURTLEBOT_WORLD_6 = World(
              [-9.0], 
              [-9.0]],
     target_positions=[[6.0, 5.0], 
+                      [-2.0, 5.0], 
+                      [-10.0, 5.0], 
+                      [8.0, -5.0], 
+                      [-4.0, -5.0], 
+                      [-16.0, -5.0]],
+    obs_positions=[[6.0, 5.0], 
                       [-2.0, 5.0], 
                       [-10.0, 5.0], 
                       [8.0, -5.0], 
@@ -85,6 +94,12 @@ TURTLEBOT_WORLD_5 = World(
                       [-10.0, 5.0], 
                       [8.0, -5.0], 
                       [-4.0, -5.0], 
+                      [-16.0, -5.0]],
+    obs_positions=[[6.0, 5.0], 
+                      [-2.0, 5.0], 
+                      [-10.0, 5.0], 
+                      [8.0, -5.0], 
+                      [-4.0, -5.0], 
                       [-16.0, -5.0]]
 )
 
@@ -92,28 +107,32 @@ EVAL_WORLD_0 = World(
     robot_alives=[True],
     x_starts=[[0.0]],
     y_starts=[[0.0]],
-    target_positions=[[5.0, 5.0]]
+    target_positions=[[5.0, 5.0]],
+    obs_positions=[[5.0, 5.0]]
 )
 
 EVAL_WORLD_1 = World(
     robot_alives=[True],
     x_starts=[[0.0]],
     y_starts=[[0.0]],
-    target_positions=[[-5.0, 5.0]]
+    target_positions=[[-5.0, 5.0]],
+    obs_positions=[[-5.0, 5.0]]
 )
 
 EVAL_WORLD_2 = World(
     robot_alives=[True],
     x_starts=[[0.0]],
     y_starts=[[0.0]],
-    target_positions=[[5.0, -5.0]]
+    target_positions=[[5.0, -5.0]],
+    obs_positions=[[5.0, -5.0]]
 )
 
 EVAL_WORLD_3 = World(
     robot_alives=[True],
     x_starts=[[0.0]],
     y_starts=[[0.0]],
-    target_positions=[[-5.0, -5.0]]
+    target_positions=[[-5.0, -5.0]],
+    obs_positions=[[-5.0, -5.0]]
 )
 
 TURTLEBOT_WORLD_5_STARTS = World(
@@ -140,7 +159,13 @@ TURTLEBOT_WORLD_5_STARTS = World(
                       [-10.0, 5.0],
                       [8.0, -5.0],
                       [-4.0, -5.0],
-                      [-16.0, -5.0]]
+                      [-16.0, -5.0]],
+    obs_positions=[[6.0, 5.0],
+                      [-2.0, 5.0],
+                      [-10.0, 5.0],
+                      [8.0, -5.0],
+                      [-4.0, -5.0],
+                      [-16.0, -5.0]],
 )
 
 # TODO needs to be modified after setting up WhyCODE
@@ -148,13 +173,15 @@ REAL_WORLD = World(
     robot_alives=[True],
     x_starts=[[0.7]],
     y_starts=[[0.3]],
-    target_positions=[[3.45, 2.8]]
+    target_positions=[[3.45, 2.8]],
+    obs_positions=[[3.45, 2.8]]
 )
 REAL_SIM_WORLD = World(
     robot_alives=[True],
     x_starts=[[0.5]],
     y_starts=[[0.5]],
-    target_positions=[[3.6, 2.8]]
+    target_positions=[[3.6, 2.8]],
+    obs_positions=[[3.6, 2.8]]
 )
 
 
@@ -190,6 +217,15 @@ REAL_WORLD_8 = World(
                       [-1.2, 5.2],
                       [-1.2, 0.2],
                       [-1.2, -4.8], 
+                      [-1.2, -9.8]],
+
+    obs_positions=[[3.8, 7.8], 
+                      [3.8, 2.8], 
+                      [3.8, -2.2], 
+                      [3.8, -7.2], 
+                      [-1.2, 5.2],
+                      [-1.2, 0.2],
+                      [-1.2, -4.8], 
                       [-1.2, -9.8]]
 )
 
@@ -207,6 +243,10 @@ REAL_WORLD_4_diff_reward = World(
              [-2.2], 
              [-7.2]],
     target_positions=[[3.8, 7.8], 
+                      [3.8, 2.8], 
+                      [-1.2, -4.8], 
+                      [-1.2, -9.8]],
+    obs_positions=[[3.8, 7.8], 
                       [3.8, 2.8], 
                       [-1.2, -4.8], 
                       [-1.2, -9.8]]
@@ -230,5 +270,9 @@ REAL_WORLD_4_circle = World(
     target_positions=[[-18.0, 6.0], 
                       [-6.0, -6.0], 
                       [1.0, 0.0], 
-                      [23.0, 0.0]]
-)
+                      [23.0, 0.0]],
+    obs_positions=[[-18.0, 3.0],
+                   [-6.0, -3.0],
+                   [3.5, 0.0],
+                   [20.5, 0.0]]
+)                   

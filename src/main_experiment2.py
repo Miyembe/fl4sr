@@ -16,8 +16,8 @@ sys.path.append(HOME + '/catkin_ws/src/fl4sr/src')
 # This is done so the experiment can be restarted after encoutering error.
 
 dict_reward = {'reward_goal': [100.0], 'reward_collision': [-30.0], 'reward_progress': [40.0]}
-dict_update_period = {'updatePeriod': [1,3,5]}
-dict_learning_rate = {'learning_rate': [0.001, 0.0005, 0.0003, 0.0001]}
+dict_update_period = {'updatePeriod': [1]}
+dict_learning_rate = {'learning_rate': [0.001, 0.0005, 0.0003, 0.0002, 0.0001]}
 dict_seed = {'seed': [601, 602, 603]}
 dict_algorithms = {'algorithms': ['IDDPG']}
 
