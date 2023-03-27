@@ -6,28 +6,28 @@
   <arg name="tb3_2" default="tb3_2" />
   <arg name="tb3_3" default="tb3_3" />
   
-  <arg name="x_pos0" default="0.6"/>
-  <arg name="y_pos0" default="5.5"/>
+  <arg name="x_pos0" default="-18.0"/>
+  <arg name="y_pos0" default="0.0"/>
   <arg name="z_pos0" default="0.0"/>
   <arg name="yaw_0"  default="0.79"/>
 
-  <arg name="x_pos1" default="0.6"/>
-  <arg name="y_pos1" default="0.5"/>
+  <arg name="x_pos1" default="-6.0"/>
+  <arg name="y_pos1" default="0.0"/>
   <arg name="z_pos1" default="0.0"/>
   <arg name="yaw_1"  default="0.79"/>
   
-  <arg name="x_pos6" default="-4.5"/>
-  <arg name="y_pos6" default="-2.2"/>
+  <arg name="x_pos6" default="6.0"/>
+  <arg name="y_pos6" default="0.0"/>
   <arg name="z_pos6" default="0.0"/>
   <arg name="yaw_6"  default="-0.79"/>
 
-  <arg name="x_pos7" default="-4.5"/>
-  <arg name="y_pos7" default="-7.2"/>
+  <arg name="x_pos7" default="18.0"/>
+  <arg name="y_pos7" default="0.0"/>
   <arg name="z_pos7" default="0.0"/>
   <arg name="yaw_7"  default="-0.79"/>
 
   <include file="$(find gazebo_ros)/launch/empty_world.launch">
-    <arg name="world_name" value="$(find fl4sr)/worlds/fl4sr_real_8_no_obs.world"/>
+    <arg name="world_name" value="$(find fl4sr)/worlds/fl4sr_real_8_obs_viz_target.world"/>
     <arg name="paused" value="false"/>
     <arg name="use_sim_time" value="true"/>
     <arg name="gui" value="true"/>

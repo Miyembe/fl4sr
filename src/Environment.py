@@ -56,7 +56,7 @@ class Environment():
         if list_reward == 1:
             self.ARR_REWARD_GOAL = np.array([100, 100, 100, 100])
             self.ARR_REWARD_COLLISION = np.array([-20, -20, -20, -20])
-            self.ARR_REWARD_PROGRESS = np.array([40, 40, 40, 40])
+            self.ARR_REWARD_PROGRESS = np.array([5, 5, 5, 5])
         if list_reward == 2:
             self.ARR_REWARD_GOAL = np.array([100, 100, 100, 100])
             self.ARR_REWARD_COLLISION = np.array([0, -20, -50, -30])

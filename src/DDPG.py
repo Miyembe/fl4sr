@@ -146,7 +146,9 @@ class DDPG:
         self.actor_optimizer.step()
 
         #print(f"critic_loss: {critic_loss}, q_target_t: {q_target_t}, q_current_t: {q_current_t}")
-        print(f"policy_loss: {policy_loss}, critic_loss: {critic_loss}")
+        print(f"Critic_loss: {critic_loss}, q_target: {q_target_t}, q_current_t: {q_current_t}")
+        print(f"rewards_t: {rewards_t}, q_target_next_t: {q_target_next_t}")
+        print(f"policy_loss: {policy_loss}")
         return tuple([policy_loss.detach().cpu().numpy(), critic_loss.detach().cpu().numpy()])
 
     def update_targets(self,
