@@ -48,8 +48,9 @@ class Environment():
         """
         print(f"INSIDE Enviroment | world: {world}, reward_goal: {reward_goal}, reward_collision: {reward_collision}, reward_progress: {reward_progress}, factor_linear: {factor_linear}, factor_angular: {factor_angular}, is_progress: {is_progress}")
         # params        
-        self.COLLISION_RANGE = 0.20
-        self.MAXIMUM_SCAN_RANGE = 1.0
+        self.COLLISION_RANGE = 0.25
+        self.SAFETY_RANGE = 0.7
+        self.MAXIMUM_SCAN_RANGE = 1.5
         self.MINIMUM_SCAN_RANGE = 0.12
         self.GOAL_RANGE = 0.5
         #print(f"list_reward: {list_reward}")
@@ -86,7 +87,7 @@ class Environment():
             self.ARR_REWARD_COLLISION = np.array([0, 0, -20, -20])
             self.ARR_REWARD_PROGRESS = np.array([60, 0, 10, 10])
         self.REWARD_GOAL = reward_goal
-        self.REWARD_COLLISION_FIX_RATE = 0.25
+        self.REWARD_COLLISION_FIX_RATE = 1.0
         self.REWARD_COLLISION_FIX = self.ARR_REWARD_COLLISION * self.REWARD_COLLISION_FIX_RATE
         self.REWARD_COLLISION_VARIABLE = self.ARR_REWARD_COLLISION * (1 - self.REWARD_COLLISION_FIX_RATE)
         self.REWARD_COLLISION = np.add(self.REWARD_COLLISION_FIX, self.REWARD_COLLISION_VARIABLE)
@@ -435,14 +436,15 @@ class Environment():
         #self.unpause()
         num_simulation_step = int(time_step / self.sim_step_size)
         elapsed_sim_time = 0
-        self.step_control(True, True, num_simulation_step)
+        print(f"num_simulation_step: {num_simulation_step}")
+        self.step_control(num_simulation_step)
         
         break_time = time.time()
         while elapsed_sim_time < time_step - 2*self.rate_period:
             self.rate.sleep() 
             elapsed_sim_time = rospy.get_time() - start_time
-            #print(f"elapsed_sim_time: {elapsed_sim_time}")
-            #print(f"break_time: {time.time() - break_time}")
+            print(f"elapsed_sim_time: {elapsed_sim_time}")
+            print(f"break_time: {time.time() - break_time}")
             if time.time() - break_time > time_step:
                 
                 break
@@ -589,15 +591,16 @@ class Environment():
 
         return states, rewards, robot_finished, self.robot_succeeded, False, data
 
-    def calculate_reward_collision(self, robot_collisions, id_collisions, robot_lasers):
+    def calculate_reward_collision(self, robot_collisions, id_collisions, robot_lasers, safety_violations):
         # 1. Reward for the collision event
         reward_collision = np.zeros(self.robot_count)
         for idx in np.where(robot_collisions)[0]:
-            reward_collision[idx] = (self.REWARD_COLLISION_VARIABLE[idx] * abs(np.cos(id_collisions[idx]/self.laser_count)) - self.REWARD_COLLISION_FIX[idx])
-        # 2. Reward for the dense collision reward - suppresses more progressive reward
+            reward_collision[idx] = self.REWARD_COLLISION_FIX#(self.REWARD_COLLISION_VARIABLE[idx] * abs(np.cos(id_collisions[idx]/self.laser_count)) - self.REWARD_COLLISION_FIX[idx])
+        # 2. Reward for the safety violations - penalty given for the robot close enough to obstacles # Reward for the dense collision reward - suppresses more progressive reward
         for jdx in range(self.robot_count):
-            reward_collision[jdx] += -(np.exp(robot_lasers[jdx][id_collisions[jdx]] * self.LAMBDA_COLLISION)) + 1
-        
+            #reward_collision[jdx] += -(np.exp(robot_lasers[jdx][id_collisions[jdx]] * self.LAMBDA_COLLISION)) + 1
+            if safety_violations[jdx] == True:
+                reward_collision[jdx] = self.REWARD_COLLISION_FIX
         return reward_collision
         
         # 
@@ -742,7 +745,7 @@ class Environment():
         number: float) -> float:
         """ Normalise the scan value with the given minimum and maxiumum range
         Returns:
-            float: normalised scan value.
+            float: normalised inverse scan value.
         
         """
         normalised_value = self.MAXIMUM_SCAN_RANGE - (number - self.MINIMUM_SCAN_RANGE) * (self.MAXIMUM_SCAN_RANGE / (self.MAXIMUM_SCAN_RANGE - self.MINIMUM_SCAN_RANGE))
@@ -773,6 +776,7 @@ class Environment():
         lasers = []
         collisions = [False for i in range(self.robot_count)]
         id_collisions = [0 for i in range(self.robot_count)]
+        safety_violations = [False for i in range(self.robot_count)]
         # each robot
         for i in range(self.robot_count):
             lasers.append(median_scan_ranges[i])
@@ -780,7 +784,6 @@ class Environment():
             #print(f"scan.ranges: {scan.ranges}")
             # each laser in scan
             for j in range(len(median_scan_ranges[i])):
-
                 # if j == 0:
                 #     pass
                 # else:
@@ -802,12 +805,13 @@ class Environment():
             #lasers[i] = list(lasers_deque)
             id_collisions[i] = np.argmax(lasers[i])
             if max(lasers[i]) > self.normalise_scan(self.COLLISION_RANGE):
-                
                 #print(f"This is a normalised collision value: {self.normalise_scan(self.COLLISION_RANGE)}")
                 collisions[i] = True
+            if max(lasers[i]) > self.normalise_scan(self.SAFETY_RANGE):
+                safety_violations[i] = True
         lasers = np.array(lasers)
         collisions = np.array(collisions)
-        return lasers, collisions, id_collisions
+        return lasers, collisions, id_collisions, safety_violations
 
     def put_scan_into_buffer(self
         ) -> None:
