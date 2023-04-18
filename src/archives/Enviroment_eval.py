@@ -156,14 +156,11 @@ class Enviroment_eval():
         self.dict_traj = {'x': [], 'y': [], 'theta': []}
         self.traj_eff = np.zeros((self.robot_count), dtype=float)
 
-        
         # list to attend the results for full experiments.
         # append this list with results. 
         self.list_robot_succeeded = []
         self.list_arrival_time = []
         self.list_traj_eff = []
-
-
 
         # previous and current distances
         self.robot_target_distances_previous = self.get_distance(
@@ -536,7 +533,18 @@ class Enviroment_eval():
         twist.linear.x = action[1] * self.FACTOR_LINEAR
         twist.angular.z = action[0] * self.FACTOR_ANGULAR
         return twist
+# Append the list of robots.
+        self.list_robot_succeeded.append(self.robot_finished)
+        self.list_arrival_time.append(self.arrival_time)
+        self.list_traj_eff.append(self.traj_eff)
 
+        # Initialisation
+        self.robot_finished = np.zeros((self.robot_count), dtype=bool)
+        self.robot_succeeded = np.zeros((self.robot_count), dtype=bool)
+        self.robot_already_succeeded = np.zeros((self.robot_count), dtype=bool)
+        self.start_time = np.zeros((self.robot_count), dtype=float)
+        self.arrival_time = np.zeros((self.robot_count), dtype=float)
+        self.traj_eff = np.zeros((self.robot_count), dtype=float)
     def get_distance(self, 
         x_0: np.ndarray,
         x_1: np.ndarray,

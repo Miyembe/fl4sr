@@ -159,10 +159,6 @@ class IndividualDDPG():
         # paths
         self.init_paths()
 
-        
-
-    
-
         return
 
     def init_environment(self
