@@ -138,12 +138,12 @@ class Environment():
         self.radius_reset = self.radius+1.0
 
         # Obstacle related variables
-        # self.obs_positions = world.obs_positions
-        # self.x_obs = np.array(self.obs_positions).T[0]
-        # self.y_obs = np.array(self.obs_positions).T[1]
-        # self.range_r_obs = [2,3]
-        # self.range_theta_obs = [-np.pi/6, np.pi/6]
-        # print(f"obs_positions: {self.obs_positions}")
+        self.obs_positions = world.obs_positions
+        self.x_obs = np.array(self.obs_positions).T[0]
+        self.y_obs = np.array(self.obs_positions).T[1]
+        self.range_r_obs = [2,3]
+        self.range_theta_obs = [-np.pi/6, np.pi/6]
+        print(f"obs_positions: {self.obs_positions}")
 
         #self.coordinates_arena = [[(0.0,5.0),(4.2,9.3)], [(0.0, 0.0), (4.2, 4.3)], [(-5.0,-5.0),(-0.8,-0.7)], [(-5.0,-10.0),(-0.8, -5.7)]]
         
@@ -164,21 +164,21 @@ class Environment():
                                      0)
             for id, rid in enumerate(self.robot_indexes)]
 
-        # self.reset_obs_messages = \
-        #     [self.create_model_state('obs_{}'.format(rid), 
-        #                              self.x_obs[id], 
-        #                              self.y_obs[id], 
-        #                              0)
-        #     for id, rid in enumerate(self.robot_indexes)]
+        self.reset_obs_messages = \
+            [self.create_model_state('obs_{}'.format(rid), 
+                                     self.x_obs[id], 
+                                     self.y_obs[id], 
+                                     0)
+            for id, rid in enumerate(self.robot_indexes)]
         self.command_empty = Twist()
         # basic settings
         self.node = rospy.init_node('turtlebot_env', anonymous=True)
         self.rate_freq = 100
         self.rate_period = 1 / self.rate_freq
         self.rate = rospy.Rate(self.rate_freq)
-        self.laser_count = 24
+        self.laser_count = 360
         
-        self.observation_dimension = self.laser_count + 3
+        self.observation_dimension = self.laser_count + 3 + 2
         self.action_dimension = 2
 
         # publishers for turtlebots
@@ -310,8 +310,6 @@ class Environment():
         rospy.wait_for_service('/gazebo/reset_simulation')
         rospy.wait_for_service('/gazebo/set_model_state')
 
-        # self.x_targets[id] = random.choice([self.x_starts[id] - np.random(self.radius-3, self.radius), self.x_starts[id] + np.random(self.radius-3, self.radius)])
-        # self.y_targets[id] = random.choice([np.sqrt(self.radius**2-self.x_targets[id]**2), -np.sqrt(self.radius**2-self.x_targets[id]**2)])
         # Reset laser_buffer (or median filter)
         self.laser_buffer = [queue.Queue(self.num_laser_buffer) for i in range(self.robot_count)] #[[] for i in range(self.robot_count)]
         # set model states or reset world
@@ -338,8 +336,8 @@ class Environment():
                     self.y_targets[id] = random.choice([np.sqrt(self.radius**2-(self.x_starts[id]-self.x_targets[id])**2), -np.sqrt(self.radius**2-(self.x_starts[id]-self.x_targets[id])**2)])
                     direction = 0.0 #+ (np.random.rand() * np.pi / 2) - (np.pi / 4)
                     
-                    #self.x_obs[id], self.y_obs[id] = self.choose_random_obs_pose2d(self.range_r_obs, self.range_theta_obs, [self.x_targets[id], self.y_targets[id]],
-                                                                   #[self.x_starts[id], self.y_starts[id]])
+                    self.x_obs[id], self.y_obs[id] = self.choose_random_obs_pose2d(self.range_r_obs, self.range_theta_obs, [self.x_targets[id], self.y_targets[id]],
+                                                                   [self.x_starts[id], self.y_starts[id]])
                     # generate new message
                     self.reset_tb3_messages[id] = \
                         self.create_model_state('tb3_{}'.format(rid), 
@@ -351,17 +349,15 @@ class Environment():
                                                 self.x_targets[id], 
                                                 self.y_targets[id], 
                                                 0)
-                    # self.reset_obs_messages[id] = \
-                    #     self.create_model_state('obs_{}'.format(rid), 
-                    #                             self.x_obs[id], 
-                    #                             self.y_obs[id], 
-                    #                             0)
+                    self.reset_obs_messages[id] = \
+                        self.create_model_state('obs_{}'.format(rid), 
+                                                self.x_obs[id], 
+                                                self.y_obs[id], 
+                                                0)
                     # reset enviroment position
                     state_setter(self.reset_tb3_messages[id])
                     state_setter(self.reset_target_messages[id])
-                    #state_setter(self.reset_obs_messages[id])
-                    
-                    #state_setter(self.reset_target_messages[id])
+                    state_setter(self.reset_obs_messages[id])
                     self.robot_finished[id] = False
                 print('Starts x:', self.x_starts)
                 print('Starts y:', self.y_starts)
@@ -378,14 +374,14 @@ class Environment():
                                             self.y_targets[id], 
                                             0)
                     for id, rid in enumerate(self.robot_indexes)]
-                # self.reset_obs_messages = \
-                #     [self.create_model_state('obs_{}'.format(rid), 
-                #                             self.x_obs[id], 
-                #                             self.y_obs[id], 
-                #                             0)
-                #     for id, rid in enumerate(self.robot_indexes)]
+                self.reset_obs_messages = \
+                    [self.create_model_state('obs_{}'.format(rid), 
+                                            self.x_obs[id], 
+                                            self.y_obs[id], 
+                                            0)
+                    for id, rid in enumerate(self.robot_indexes)]
                 state_setter(self.reset_target_messages[robot_id])
-                #state_setter(self.reset_obs_messages[robot_id])
+                state_setter(self.reset_obs_messages[robot_id])
                 self.robot_finished[robot_id] = False
             except rospy.ServiceException as e:
                 print('Failed state setter!', e)
@@ -529,7 +525,7 @@ class Environment():
         robot_lasers, robot_collisions, id_collisions, safety_violations, safety_proportions = self.get_robot_lasers_collisions(list_median_scan_ranges)
 
         # create state array 
-        # = lasers (24), 
+        # = lasers (360), 
         #   action linear x (1), action angular z (1), 
         #   distance to target (1), angle to target (1)
         # = dimension (6, 28)
@@ -538,7 +534,10 @@ class Environment():
         s_robot_target_distances = robot_target_distances.reshape((self.robot_count, 1)) /self.FACTOR_NORMALISE_DISTANCE 
         s_robot_target_angle_difference = robot_target_angle_difference.reshape((self.robot_count, 1)) / self.FACTOR_NORMALISE_ANGLE
         s_robot_target_cartesian_angle = robot_target_cartesian_angle.reshape((self.robot_count, 2))
-        assert robot_lasers.shape == (self.robot_count, 24), f'Wrong lasers dimension!: {robot_lasers.shape}'
+        s_robot_linear_velocity = actions_linear_x.reshape((self.robot_count, 1))
+        s_robot_angular_velocity = actions_angular_z.reshape((self.robot_count, 1))
+
+        assert robot_lasers.shape == (self.robot_count, 360), f'Wrong lasers dimension!: {robot_lasers.shape}'
         assert s_actions_linear.shape == (self.robot_count, 1), 'Wrong action linear dimension!'
         assert s_actions_angular.shape == (self.robot_count, 1), 'Wrong action angular dimension!'
         assert s_robot_target_distances.shape == (self.robot_count, 1), 'Wrong distance to target!'
@@ -548,7 +547,9 @@ class Environment():
                             #s_actions_linear, s_actions_angular, 
                             s_robot_target_distances,
                             #s_robot_target_angle_difference,
-                            s_robot_target_cartesian_angle))
+                            s_robot_target_cartesian_angle,
+                            s_robot_linear_velocity,
+                            s_robot_angular_velocity))
         assert states.shape == (self.robot_count, self.observation_dimension), 'Wrong states dimension!'
         
         # rewards
@@ -585,7 +586,7 @@ class Environment():
         self.robot_finished[np.where(robot_collisions)] = True
         energy_penalty = self.calculate_energy_penalty(actions_linear_x, actions_angular_z)
         # total reward
-        rewards = reward_distance + reward_goal + energy_penalty#+ reward_collision + reward_time
+        rewards = reward_distance + reward_goal + reward_collision#energy_penalty#+ reward_collision + reward_time
         #print(f"robot_collisions: {robot_collisions}")
         #print(f"robot_lasers: {robot_lasers}")
         print(f"rewards: {rewards}")
@@ -612,13 +613,13 @@ class Environment():
         if was_restarted:
             states = self.get_current_states()
 
-        '''performance metric calculation related'''
-        for i in range(self.robot_count):
-            if self.robot_succeeded[i]:
-                self.arrival_time[i] = rospy.get_time() - self.start_time[i]
-                self.traj_eff[i] = self.calculate_traj_eff(self.dict_traj, i)
-                # after reset, the start time is initialised and the arrival time is calculated by subtracting the current time and the start time.
-                # only reset when every robots are finished.
+        # '''performance metric calculation related'''
+        # for i in range(self.robot_count):
+        #     if self.robot_succeeded[i]:
+        #         self.arrival_time[i] = rospy.get_time() - self.start_time[i]
+        #         self.traj_eff[i] = self.calculate_traj_eff(self.dict_traj, i)
+        #         # after reset, the start time is initialised and the arrival time is calculated by subtracting the current time and the start time.
+        #         # only reset when every robots are finished.
 
 
 
@@ -924,8 +925,10 @@ class Environment():
         list_median_scan_ranges = self.apply_median_filter()
         robot_lasers, robot_collisions, id_collisions, safety_violations, safety_proportions = self.get_robot_lasers_collisions(list_median_scan_ranges)
         
+        actions_linear_x = np.array([0 for _ in range(self.robot_count)])
+        actions_angular_z = np.array([0 for _ in range(self.robot_count)])
         # create state array 
-        # = lasers (24), 
+        # = lasers (360), 
         #   action linear x (1), action angular z (1), 
         #   distance to target (1), angle to target (1)
         # = dimension (6, 28)
@@ -934,7 +937,10 @@ class Environment():
         s_robot_target_distances = robot_target_distances.reshape((self.robot_count, 1))
         s_robot_target_angle_difference = robot_target_angle_difference.reshape((self.robot_count, 1)) / self.FACTOR_NORMALISE_ANGLE
         s_robot_target_cartesian_angle = robot_target_cartesian_angle.reshape((self.robot_count, 2))
-        assert robot_lasers.shape == (self.robot_count, 24), f'Wrong lasers dimension!: {robot_lasers.shape}'
+        s_robot_linear_velocity = actions_linear_x.reshape((self.robot_count, 1))
+        s_robot_angular_velocity = actions_angular_z.reshape((self.robot_count, 1))
+
+        assert robot_lasers.shape == (self.robot_count, 360), f'Wrong lasers dimension!: {robot_lasers.shape}'
         assert s_actions_linear.shape == (self.robot_count, 1), 'Wrong action linear dimension!'
         assert s_actions_angular.shape == (self.robot_count, 1), 'Wrong action angular dimension!'
         assert s_robot_target_distances.shape == (self.robot_count, 1), 'Wrong distance to target!'
@@ -944,6 +950,8 @@ class Environment():
                             #s_actions_linear, s_actions_angular, 
                             s_robot_target_distances,
                             #s_robot_target_angle_difference,
-                            s_robot_target_cartesian_angle))
+                            s_robot_target_cartesian_angle,
+                            s_robot_linear_velocity,
+                            s_robot_angular_velocity))
         assert states.shape == (self.robot_count, self.observation_dimension), 'Wrong states dimension!'
         return states
