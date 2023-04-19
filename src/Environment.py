@@ -176,7 +176,11 @@ class Environment():
         self.rate_freq = 100
         self.rate_period = 1 / self.rate_freq
         self.rate = rospy.Rate(self.rate_freq)
-        self.laser_count = 360
+        self.laser_count = 1080
+        self.prev_prev_lasers = [None for _ in range(self.robot_count)]
+        self.prev_lasers = [None for _ in range(self.robot_count)]
+        self.cur_lasers = [None for _ in range(self.robot_count)]
+        self.laser_stacks = [None for _ in range(self.robot_count)]
         
         self.observation_dimension = self.laser_count + 3 + 2
         self.action_dimension = 2
@@ -523,6 +527,10 @@ class Environment():
         self.put_scan_into_buffer()
         list_median_scan_ranges = self.apply_median_filter()
         robot_lasers, robot_collisions, id_collisions, safety_violations, safety_proportions = self.get_robot_lasers_collisions(list_median_scan_ranges)
+        for i in range(self.robot_count):
+            self.cur_lasers[i] = robot_lasers[i]
+            self.laser_stacks[i] = self.stack_laser(i, flatten=True)
+        
 
         # create state array 
         # = lasers (360), 
@@ -537,13 +545,13 @@ class Environment():
         s_robot_linear_velocity = actions_linear_x.reshape((self.robot_count, 1))
         s_robot_angular_velocity = actions_angular_z.reshape((self.robot_count, 1))
 
-        assert robot_lasers.shape == (self.robot_count, 360), f'Wrong lasers dimension!: {robot_lasers.shape}'
+        assert np.array(self.laser_stacks).shape == (self.robot_count, 1080), f'Wrong lasers dimension!: {360}'
         assert s_actions_linear.shape == (self.robot_count, 1), 'Wrong action linear dimension!'
         assert s_actions_angular.shape == (self.robot_count, 1), 'Wrong action angular dimension!'
         assert s_robot_target_distances.shape == (self.robot_count, 1), 'Wrong distance to target!'
         assert s_robot_target_cartesian_angle.shape == (self.robot_count, 2), 'Wrong angle to target!'
         #assert s_robot_target_angle_difference.shape == (self.robot_count, 1), 'Wrong angle to target!'
-        states = np.hstack((robot_lasers, 
+        states = np.hstack((self.laser_stacks, 
                             #s_actions_linear, s_actions_angular, 
                             s_robot_target_distances,
                             #s_robot_target_angle_difference,
@@ -921,10 +929,16 @@ class Environment():
         robot_target_cartesian_angle = self.convert_angle_polar2cartesian(robot_target_angle_difference)
         # get current laser measurements
         self.put_scan_into_buffer()
-
         list_median_scan_ranges = self.apply_median_filter()
         robot_lasers, robot_collisions, id_collisions, safety_violations, safety_proportions = self.get_robot_lasers_collisions(list_median_scan_ranges)
         
+        for i in range(self.robot_count):
+            self.cur_lasers[i] = robot_lasers[i]
+            self.laser_stacks[i] = self.stack_laser(i, flatten=True)
+        
+        print(f"self.laser_stacks: {self.laser_stacks}")
+
+
         actions_linear_x = np.array([0 for _ in range(self.robot_count)])
         actions_angular_z = np.array([0 for _ in range(self.robot_count)])
         # create state array 
@@ -940,13 +954,13 @@ class Environment():
         s_robot_linear_velocity = actions_linear_x.reshape((self.robot_count, 1))
         s_robot_angular_velocity = actions_angular_z.reshape((self.robot_count, 1))
 
-        assert robot_lasers.shape == (self.robot_count, 360), f'Wrong lasers dimension!: {robot_lasers.shape}'
+        assert np.array(self.laser_stacks).shape == (self.robot_count, 1080), f'Wrong lasers dimension!: {robot_lasers.shape}'
         assert s_actions_linear.shape == (self.robot_count, 1), 'Wrong action linear dimension!'
         assert s_actions_angular.shape == (self.robot_count, 1), 'Wrong action angular dimension!'
         assert s_robot_target_distances.shape == (self.robot_count, 1), 'Wrong distance to target!'
         assert s_robot_target_cartesian_angle.shape == (self.robot_count, 2), 'Wrong angle to target!'
         #assert s_robot_target_angle_difference.shape == (self.robot_count, 1), 'Wrong angle to target!'
-        states = np.hstack((robot_lasers, 
+        states = np.hstack((self.laser_stacks, 
                             #s_actions_linear, s_actions_angular, 
                             s_robot_target_distances,
                             #s_robot_target_angle_difference,
@@ -955,3 +969,39 @@ class Environment():
                             s_robot_angular_velocity))
         assert states.shape == (self.robot_count, self.observation_dimension), 'Wrong states dimension!'
         return states
+
+    # Laser related functions
+
+    def initialise_laser(self, 
+        id: int
+        )-> None:
+        self.prev_prev_lasers[id] = None
+        self.prev_lasers[id] = None
+        self.cur_lasers[id] = None
+        self.laser_stacks[id] = None
+
+    def update_laser(self,
+        id: int
+        )-> None:
+        self.prev_prev_lasers[id] = self.prev_lasers[id]
+        self.prev_lasers[id] = self.cur_lasers[id]
+
+    def stack_laser(self,
+        id: int,
+        flatten: bool
+        ) -> list:
+        if flatten:
+            if self.prev_prev_lasers[id] is not None and self.prev_lasers[id] is not None:
+                laser_stack = self.prev_prev_lasers[id].tolist() + self.prev_lasers[id].tolist() + self.cur_lasers[id].tolist()
+            else:
+                laser_stack = self.cur_lasers[id].tolist() + self.cur_lasers[id].tolist() +  self.cur_lasers[id].tolist()
+        else:
+            if self.prev_prev_lasers[id] is not None and self.prev_lasers[id] is not None:
+                laser_stack = [self.prev_prev_lasers[id], self.prev_lasers[id], self.cur_lasers[id]]
+            else:
+                laser_stack = [self.cur_lasers[id], self.cur_lasers[id], self.cur_lasers[id]]
+        self.update_laser(id)
+        return laser_stack
+
+
+        

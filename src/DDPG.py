@@ -20,7 +20,7 @@ class DDPG:
         state_dimension: int,
         action_dimension: int,
         discount_factor: float,
-        num_parameters: int = 128,
+        num_parameters: int = 256,
         learning_rate: float = 0.001,
         batch_size: int = 512
         ) -> None:
