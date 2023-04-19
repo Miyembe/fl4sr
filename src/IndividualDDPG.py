@@ -241,6 +241,10 @@ class IndividualDDPG():
         self.robots_finished = np.zeros((self.episode_count, self.robot_count), dtype=bool)
         self.list_critic_frames = [[] for _ in range(self.robot_count)]
         self.list_policy_frames = [[] for _ in range(self.robot_count)]
+
+        self.average_success_rate = np.zeros((self.episode_count, self.robot_count))
+        self.average_arrival_time = np.zeros((self.episode_count, self.robot_count))
+        self.average_traj_eff = np.zeros((self.episode_count, self.robot_count))
         self.data = []      
         return
 
@@ -304,6 +308,11 @@ class IndividualDDPG():
             data_total_rewards = np.zeros(self.robot_count)
             data_total_policy_losses = np.zeros(self.robot_count)
             data_total_critic_losses = np.zeros(self.robot_count)
+
+            data_success_rate = np.zeros(self.robot_count)
+            data_arrival_time = np.zeros(self.robot_count)
+            data_traj_eff = np.zeros(self.robot_count)
+
             if self.episode_error != episode:
                 self.episode_step_error = 0
             for step in range(self.episode_step_error, self.episode_step_count):
@@ -344,7 +353,10 @@ class IndividualDDPG():
                     print('{}.{}'.format(episode, step))
                     print(actions)
                 current_states = new_states
-            self.data_collect(episode, data_total_rewards, data_total_policy_losses, data_total_critic_losses, robots_succeeded_once)
+            array_success_rate, array_arrival_time, array_traj_eff = self.environment.calculate_average_metrics
+            self.environment.initialise_performance_metrics()
+            self.data_collect(episode, data_total_rewards, data_total_policy_losses, data_total_critic_losses, robots_succeeded_once,
+                              array_success_rate, array_arrival_time, array_traj_eff)
             # print info
             print('Average episode rewards: {}'.format(self.average_rewards[episode]))
             # episode federated update
@@ -649,7 +661,10 @@ class IndividualDDPG():
         total_rewards,
         total_policy_loss, 
         total_critic_loss,
-        robots_succeeded_once
+        robots_succeeded_once,
+        array_success_rate,
+        array_arrival_time,
+        array_traj_eff
         ) -> None:
         """Collect data from learning experiments.
         Args:
@@ -661,6 +676,9 @@ class IndividualDDPG():
         self.average_policy_loss[episode] = total_policy_loss / (self.episode_step_count/self.TIME_TRAIN)
         self.average_critic_loss[episode] = total_critic_loss / (self.episode_step_count/self.TIME_TRAIN)
         self.robots_succeeded_once[episode] = robots_succeeded_once
+        self.average_success_rate[episode] = array_success_rate
+        self.average_arrival_time[episode] = array_arrival_time
+        self.average_traj_eff[episode] = array_traj_eff
         if episode != 0:
             same_indexes = np.where(self.average_rewards[episode-1] == self.average_rewards[episode])[0]
             if len(same_indexes) > 0:
@@ -720,6 +738,13 @@ class IndividualDDPG():
                 self.average_critic_loss)
         np.save(self.path_log + '/succeded'.format(),
                 self.robots_succeeded_once)
+        np.save(self.path_log + '/success_rate'.format(),
+                self.average_success_rate)
+        np.save(self.path_log + '/arrival_time'.format(),
+                self.average_arrival_time)
+        np.save(self.path_log + '/traj_eff'.format(),
+                self.average_traj_eff)
+        
 
         return
 

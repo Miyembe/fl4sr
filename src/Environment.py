@@ -213,15 +213,15 @@ class Environment():
         self.robot_already_succeeded = np.zeros((self.robot_count), dtype=bool)
         self.start_time = np.zeros((self.robot_count), dtype=float)
         self.arrival_time = np.zeros((self.robot_count), dtype=float)
-        self.dict_traj = {'x': [], 'y': [], 'theta': []}
+        self.list_traj = [{'x': [], 'y': [], 'theta': []} for _ in range(self.robot_count)]
         self.traj_eff = np.zeros((self.robot_count), dtype=float)
 
         
         # list to attend the results for full experiments.
         # append this list with results. 
-        self.list_robot_succeeded = []
-        self.list_arrival_time = []
-        self.list_traj_eff = []
+        self.list_robot_succeeded = [[] for _ in range(self.robot_count)]
+        self.list_arrival_time = [[] for _ in range(self.robot_count)]
+        self.list_traj_eff = [[] for _ in range(self.robot_count)]
 
         # previous and current distances
         self.robot_target_distances_previous = self.get_distance(
@@ -398,14 +398,35 @@ class Environment():
                     self.x_targets, 
                     self.y_starts, 
                     self.y_targets)
-                self.robot_succeeded = np.zeros((self.robot_count), dtype=bool)
+
+            # self.list_robot_succeeded.append(self.robot_finished)
+
+            # self.list_arrival_time.append(self.arrival_time)
+            # self.list_traj_eff.append(self.traj_eff)
+
+            
+            self.robot_finished = np.zeros((self.robot_count), dtype=bool)
+            self.robot_succeeded = np.zeros((self.robot_count), dtype=bool)
+            self.robot_already_succeeded = np.zeros((self.robot_count), dtype=bool)
+            self.start_time = np.zeros((self.robot_count), dtype=float)
+            self.arrival_time = np.zeros((self.robot_count), dtype=float)
+            self.traj_eff = np.zeros((self.robot_count), dtype=float)
         else:
             self.publisher_turtlebots[robot_id].publish(self.command_empty)            
             self.robot_target_distances_previous[robot_id] = \
                 sqrt(
                      (self.x_starts[robot_id] - self.x_targets[robot_id])**2 
                      + (self.y_starts[robot_id] - self.y_targets[robot_id])**2)
+
+            self.list_robot_succeeded[robot_id].append(self.robot_succeeded[robot_id])
+            if self.robot_succeeded[robot_id] = True:
+                self.list_arrival_time[robot_id].append(self.arrival_time[robot_id])
+                self.list_traj_eff[robot_id].append(self.traj_eff[robot_id])
+            self.robot_finished[robot_id] = False
             self.robot_succeeded[robot_id] = False
+            self.start_time[robot_id] = 0
+            self.arrival_time[robot_id] = 0
+            self.traj_eff[robot_id] = 0
         # wait for new scan message, so that laser values are updated
         # kinda cheeky but it works on my machine :D
         #print(f"before unpause")
@@ -612,6 +633,22 @@ class Environment():
         # restart robots
         was_restarted = False
         robot_finished = self.robot_finished.copy()
+         '''performance metric calculation related'''
+        for i in range(self.robot_count):
+            if self.robot_succeeded[i]:
+                self.arrival_time[i] = rospy.get_time() - self.start_time[i]
+                self.traj_eff[i] = self.calculate_traj_eff(self.list_traj, i)
+                # after reset, the start time is initialised and the arrival time is calculated by subtracting the current time and the start time.
+                # only reset when every robots are finished.
+
+
+
+        # additional data to send
+        for i in range(self.robot_count)
+            self.list_traj[i]['x'].append(x[i])
+            self.list_traj[i]['y'].append(y[i])
+            self.list_traj[i]['theta'].append(theta[i])
+
         for i in range(self.robot_count):
             # I will add the robot out of the arena here
             check_outside = self.check_outside_arena(x, y, i)
@@ -621,20 +658,7 @@ class Environment():
         if was_restarted:
             states = self.get_current_states()
 
-        # '''performance metric calculation related'''
-        # for i in range(self.robot_count):
-        #     if self.robot_succeeded[i]:
-        #         self.arrival_time[i] = rospy.get_time() - self.start_time[i]
-        #         self.traj_eff[i] = self.calculate_traj_eff(self.dict_traj, i)
-        #         # after reset, the start time is initialised and the arrival time is calculated by subtracting the current time and the start time.
-        #         # only reset when every robots are finished.
-
-
-
-        # additional data to send
-        self.dict_traj['x'].append(x)
-        self.dict_traj['y'].append(y)
-        self.dict_traj['theta'].append(theta)
+       
 
 
 
@@ -833,15 +857,15 @@ class Environment():
         
         return list_median_scan_ranges
     
-    def calculate_traj_eff(self, dict_traj, agent_id):
+    def calculate_traj_eff(self, list_traj, agent_id):
         # TODO Debugging is needed: if it outputs right values [0-1]
-        list_x = dict_traj['x']
-        list_y = dict_traj['y']
+        list_x = list_traj[agent_id]['x']
+        list_y = list_traj[agent_id]['y']
         total_distance = 0.0
         
         for i in range(len(list_x)-1):
-            total_distance += sqrt((list_x[i][agent_id]-list_x[i+1][agent_id])**2 + (list_y[i][agent_id]-list_y[i+1][agent_id])**2)
-        ref_distance = sqrt((list_x[0][agent_id]-list_x[-1][agent_id])**2 + (list_y[0][agent_id]-list_y[-1][agent_id])**2)
+            total_distance += sqrt((list_x[i]-list_x[i+1])**2 + (list_y[i]-list_y[i+1])**2)
+        ref_distance = sqrt((list_x[0]-list_x[-1])**2 + (list_y[0]-list_y[-1])**2)
         traj_eff = ref_distance/total_distance
 
         return traj_eff
@@ -969,6 +993,20 @@ class Environment():
                             s_robot_angular_velocity))
         assert states.shape == (self.robot_count, self.observation_dimension), 'Wrong states dimension!'
         return states
+
+    # Performance Metric related functions
+    def initialise_performance_metrics(self,
+        )-> None:
+        self.list_robot_succeeded = [[] for _ in range(self.robot_count)]
+        self.list_arrival_time = [[] for _ in range(self.robot_count)]
+        self.list_traj_eff = [[] for _ in range(self.robot_count)]
+
+    def calculate_average_metrics(self,
+        )-> None:
+        array_success_rate = np.mean(self.list_robot_succeeded)
+        array_arrival_time = np.mean(self.list_arrival_time)
+        array_traj_eff = np.mean(self.list_traj_eff)
+        return array_success_rate, array_arrival_time, array_traj_eff
 
     # Laser related functions
 
